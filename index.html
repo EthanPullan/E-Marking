@@ -1,0 +1,2714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-Marking — Report Card Comments</title>
+<style>
+  :root{
+    --paper:#f6f1e6; --paper2:#efe6d4; --card:#fffdf8;
+    --ink:#23231f; --ink-soft:#615f55; --ink-faint:#8c897c;
+    --line:#ddd2bb; --line-strong:#c7b99c;
+    --accent:#0f6f63; --accent-d:#0a514a;
+    --strength:#1f7a4d; --strength-bg:#ebf4ec; --strength-line:#bcdcc4;
+    --growth:#a96712; --growth-bg:#f7efdf; --growth-line:#e6d4ab;
+    --danger:#a23b2e;
+    --l4:#1f7a4d; --l3:#157a87; --l2:#bd8a16; --l1:#b1543f;
+    --serif:Georgia,'Iowan Old Style','Palatino Linotype','Book Antiqua','Times New Roman',serif;
+    --sans:ui-sans-serif,-apple-system,'Segoe UI',Roboto,system-ui,sans-serif;
+    --shadow:0 1px 2px rgba(40,34,20,.06),0 8px 24px -12px rgba(40,34,20,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--sans); color:var(--ink); line-height:1.5;
+    background:
+      repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(120,105,70,.045) 31px,rgba(120,105,70,.045) 32px),
+      radial-gradient(120% 80% at 80% -10%,#fbf7ee 0%,var(--paper) 45%,var(--paper2) 100%);
+    background-attachment:fixed;
+    min-height:100vh;
+  }
+  /* ---------- Top bar ---------- */
+  header.bar{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+    padding:14px 26px; border-bottom:1px solid var(--line-strong);
+    background:linear-gradient(180deg,rgba(255,253,248,.96),rgba(248,243,233,.92));
+    backdrop-filter:blur(6px);
+  }
+  .brand{display:flex;flex-direction:column;line-height:1.05}
+  .brand .title{font-family:var(--serif);font-size:21px;font-weight:700;letter-spacing:.2px}
+  .brand .title b{color:var(--accent-d)}
+  .brand .sub{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
+  .tabs{display:flex;gap:4px;margin-left:6px}
+  .tab{
+    font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink-soft);
+    background:transparent;border:1px solid transparent;border-radius:9px;
+    padding:8px 14px;cursor:pointer;transition:.15s;
+  }
+  .tab:hover{background:rgba(15,111,99,.07);color:var(--accent-d)}
+  .tab.active{background:var(--accent);color:#fff;box-shadow:var(--shadow)}
+  .bank-picker{display:flex;align-items:center;gap:7px;padding-left:14px;margin-left:6px;border-left:1px solid var(--line-strong)}
+  .bank-picker label{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-faint);font-weight:700}
+  .bank-picker select{
+    font-family:var(--serif);font-size:14px;font-weight:700;color:var(--accent-d);
+    padding:6px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--card);cursor:pointer;
+  }
+  .bank-picker .newbank{font-size:12px;padding:6px 9px}
+  .bar-right{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .dirty{font-size:11.5px;color:var(--growth);font-weight:600;display:none;align-items:center;gap:6px}
+  .dirty.show{display:inline-flex}
+  .dirty .dot{width:8px;height:8px;border-radius:50%;background:var(--growth)}
+  /* ---------- Buttons ---------- */
+  button.btn{
+    font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;
+    border-radius:9px;padding:8px 13px;border:1px solid var(--line-strong);
+    background:var(--card);color:var(--ink);transition:.15s;box-shadow:0 1px 1px rgba(40,34,20,.04);
+  }
+  button.btn:hover{border-color:var(--accent);color:var(--accent-d);transform:translateY(-1px)}
+  button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.btn.primary:hover{background:var(--accent-d)}
+  button.btn.ghost{background:transparent;border-color:transparent;color:var(--ink-soft)}
+  button.btn.ghost:hover{background:rgba(40,34,20,.05);color:var(--ink)}
+  button.btn.sm{padding:5px 9px;font-size:12px}
+  button.btn.danger{color:var(--danger);border-color:transparent;background:transparent}
+  button.btn.danger:hover{background:rgba(162,59,46,.08);border-color:rgba(162,59,46,.3)}
+  /* ---------- Layout ---------- */
+  main{display:none;animation:fade .4s ease both}
+  main.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .write-grid{display:grid;grid-template-columns:300px 1fr;gap:0;align-items:start}
+  @media(max-width:880px){.write-grid{grid-template-columns:1fr}}
+  /* ---------- Roster ---------- */
+  aside.roster{
+    border-right:1px solid var(--line);
+    position:sticky; top:64px; height:calc(100vh - 64px);
+    display:flex; flex-direction:column; overflow:hidden;
+    padding:20px 18px;background:linear-gradient(180deg,rgba(255,253,248,.5),transparent 320px);
+  }
+  @media(max-width:880px){aside.roster{border-right:none;border-bottom:1px solid var(--line);min-height:0;position:static;height:auto;display:block;overflow:visible}}
+  .roster h2,.panel h2{font-family:var(--serif);font-size:15px;margin:0 0 12px;letter-spacing:.2px}
+  .add-row{display:flex;gap:7px;margin-bottom:8px}
+  .add-row input{
+    flex:1;min-width:0;font-family:var(--sans);font-size:13px;padding:8px 10px;
+    border:1px solid var(--line-strong);border-radius:8px;background:var(--card);color:var(--ink);
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid rgba(15,111,99,.35);outline-offset:1px;border-color:var(--accent)}
+  .pron-mini{font-family:var(--sans);font-size:12.5px;padding:7px 8px;border:1px solid var(--line-strong);border-radius:8px;background:var(--card);color:var(--ink-soft)}
+  .student-list{display:flex;flex-direction:column;gap:4px;margin-top:10px;flex:0 1 auto;min-height:0;overflow-y:auto}
+  .student{
+    display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;cursor:pointer;
+    border:1px solid transparent;transition:.13s;
+  }
+  .student:hover{background:rgba(40,34,20,.04)}
+  .student.active{background:var(--card);border-color:var(--accent);box-shadow:var(--shadow)}
+  .student .nm{font-size:14px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .student .st-mark{width:9px;height:9px;border-radius:50%;background:var(--line-strong);flex-shrink:0}
+  .student .st-mark.done{background:var(--strength)}
+  .student .x{opacity:0;transition:.13s;font-size:12px}
+  .student:hover .x{opacity:1}
+  .empty-note{font-size:12.5px;color:var(--ink-faint);font-style:italic;padding:8px 4px;line-height:1.45}
+  #rosterFilter{flex:1;min-width:0}
+  .student .st-mark.attn{background:var(--growth)}
+  .roster-count{font-size:11.5px;color:var(--ink-faint);margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}
+  .roster-issues{margin-top:10px;border:1px solid var(--growth-line);background:var(--growth-bg);border-radius:9px;padding:9px 11px}
+  .roster-issues .ri-head{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--growth);margin-bottom:6px}
+  .roster-issues .ri-name{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--ink);background:var(--card);border:1px solid var(--growth-line);border-radius:14px;padding:3px 9px;margin:2px 3px 2px 0;cursor:pointer;transition:.12s}
+  .roster-issues .ri-name:hover{border-color:var(--growth);transform:translateY(-1px)}
+  .o-pos{font-size:11.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums;font-weight:600}
+  /* ---------- Builder panel ---------- */
+  .panel{padding:24px 30px 60px;max-width:1100px}
+  .stu-head{display:flex;align-items:center;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+  .stu-head .who{font-family:var(--serif);font-size:26px;font-weight:700}
+  .pron-select{font-family:var(--sans);font-size:12.5px;font-weight:600;padding:6px 10px;border-radius:20px;border:1px solid var(--line-strong);background:var(--card);color:var(--ink-soft);cursor:pointer}
+  .stu-head .meta{font-size:12px;color:var(--ink-faint);letter-spacing:.05em}
+  .nostu{padding:60px 30px;text-align:center;color:var(--ink-faint)}
+  .nostu .big{font-family:var(--serif);font-size:22px;color:var(--ink-soft);margin-bottom:8px}
+  .section{
+    border:1px solid var(--line);border-radius:14px;margin-top:18px;overflow:hidden;background:var(--card);box-shadow:var(--shadow);
+  }
+  .section > .sec-head{
+    display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--line);
+  }
+  .section.strength > .sec-head{background:var(--strength-bg);border-color:var(--strength-line)}
+  .section.growth > .sec-head{background:var(--growth-bg);border-color:var(--growth-line)}
+  .section.other > .sec-head{background:rgba(21,122,135,.08);border-color:rgba(21,122,135,.22)}
+  .sec-head .tag{font-family:var(--serif);font-size:15.5px;font-weight:700}
+  .section.strength .sec-head .tag{color:var(--strength)}
+  .section.growth .sec-head .tag{color:var(--growth)}
+  .section.other .sec-head .tag{color:var(--l3)}
+  .stem-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .stem-chip{
+    font-family:var(--sans);font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:18px;
+    border:1px solid var(--line-strong);background:var(--card);color:var(--ink-soft);cursor:pointer;transition:.12s;
+  }
+  .stem-chip:hover{transform:translateY(-1px);border-color:var(--l3)}
+  .stem-chip.on{background:var(--l3);color:#fff;border-color:var(--l3)}
+  .sec-head .hint{font-size:11.5px;color:var(--ink-faint)}
+  .sec-head .count{margin-left:auto;font-size:11.5px;color:var(--ink-faint)}
+  .rows{padding:6px 14px 14px}
+  .crow{
+    display:grid;gap:9px;align-items:center;padding:12px 6px;border-bottom:1px dashed var(--line);
+    grid-template-columns:1fr;
+  }
+  .crow:last-child{border-bottom:none}
+  .crow .controls{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;padding-left:2px}
+  select.sel{
+    font-family:var(--sans);font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);
+    border-radius:8px;background:var(--card);color:var(--ink);min-width:120px;max-width:340px;
+  }
+  .levels{display:flex;gap:4px}
+  .lv{
+    width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);background:var(--card);
+    font-weight:700;font-size:13px;cursor:pointer;color:var(--ink-soft);transition:.12s;
+  }
+  .lv:hover{transform:translateY(-1px)}
+  .lv[data-l="4"].on{background:var(--l4);color:#fff;border-color:var(--l4)}
+  .lv[data-l="3"].on{background:var(--l3);color:#fff;border-color:var(--l3)}
+  .lv[data-l="2"].on{background:var(--l2);color:#fff;border-color:var(--l2)}
+  .lv[data-l="1"].on{background:var(--l1);color:#fff;border-color:var(--l1)}
+  .crow .preview{
+    font-family:var(--serif);font-size:14px;color:var(--ink);line-height:1.55;
+    padding:9px 12px;background:var(--paper);border-radius:9px;border:1px solid var(--line);
+  }
+  .crow .preview.warn{border-color:var(--growth-line);background:#fcf6e9}
+  .crow .custom-other{
+    width:100%;min-height:54px;font-family:var(--serif);font-size:13.5px;padding:9px 12px;
+    border:1px solid var(--line-strong);border-radius:9px;background:var(--card);color:var(--ink);resize:vertical;line-height:1.5;
+  }
+  .miss{color:var(--growth);font-weight:600;font-style:italic}
+  .add-comment{margin:10px 14px 4px}
+  .note-box{padding:4px 18px 18px}
+  .note-box textarea{
+    width:100%;min-height:64px;font-family:var(--sans);font-size:13px;padding:10px 12px;resize:vertical;
+    border:1px solid var(--line-strong);border-radius:9px;background:var(--card);color:var(--ink);line-height:1.5;
+  }
+  .note-box .lbl{font-size:11px;color:var(--ink-faint);margin:0 0 6px;display:flex;justify-content:space-between}
+  /* ---------- Output ---------- */
+  .output{
+    position:sticky;bottom:0;margin-top:26px;border:1.5px solid var(--accent);border-radius:14px;
+    background:linear-gradient(180deg,#fffdf8,#fbf6ec);box-shadow:0 -4px 24px -14px rgba(40,34,20,.4),var(--shadow);overflow:hidden;
+  }
+  .output .o-head{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line);background:rgba(15,111,99,.06)}
+  .output .o-head .t{font-family:var(--serif);font-weight:700;font-size:14px;color:var(--accent-d)}
+  .output .o-head .stat{font-size:11.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+  .output .o-head .tools{margin-left:auto;display:flex;gap:7px;align-items:center}
+  .bul-sel{font-size:12px;padding:5px 7px;border:1px solid var(--line-strong);border-radius:7px;background:var(--card);color:var(--ink-soft)}
+  .o-body{padding:16px 20px;max-height:300px;overflow:auto}
+  pre.comment{
+    margin:0;font-family:var(--serif);font-size:14.5px;line-height:1.62;white-space:pre-wrap;color:var(--ink);
+  }
+  pre.comment .h{font-weight:700;color:var(--accent-d)}
+  .o-empty{color:var(--ink-faint);font-style:italic;font-family:var(--sans);font-size:13px}
+  .copied{color:var(--strength);font-weight:700;font-size:12.5px;opacity:0;transition:.2s}
+  .copied.show{opacity:1}
+  /* ---------- Bank editor ---------- */
+  .bank-wrap{padding:24px 30px 70px;max-width:1080px}
+  .bank-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .bank-title #subjNameInput{
+    font-family:var(--serif);font-size:24px;font-weight:700;color:var(--accent-d);
+    border:1px solid transparent;border-radius:8px;padding:3px 8px;background:transparent;max-width:280px;
+  }
+  .bank-title #subjNameInput:hover{border-color:var(--line)}
+  .bank-title #subjNameInput:focus{border-color:var(--accent);background:var(--card)}
+  .bank-title .bank-title-suffix{font-family:var(--serif);font-size:24px;font-weight:700;color:var(--ink)}
+  .bank-title .bank-div{font-family:var(--sans);font-size:12.5px;padding:6px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--card);color:var(--ink-soft);width:120px}
+  .bank-title .uses-units{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;padding:6px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--card)}
+  .bank-title #removeSubjBtn{margin-left:auto}
+  .bank-intro{font-size:13.5px;color:var(--ink-soft);max-width:760px;margin-bottom:6px;line-height:1.6}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 22px}
+  .legend code{font-family:var(--serif);background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:13px}
+  .legend code b{color:var(--accent-d)}
+  .acc{border:1px solid var(--line);border-radius:13px;margin-bottom:14px;overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+  .acc > summary{
+    cursor:pointer;list-style:none;padding:15px 20px;font-family:var(--serif);font-weight:700;font-size:16px;
+    display:flex;align-items:center;gap:10px;background:rgba(15,111,99,.04);
+  }
+  .acc > summary::-webkit-details-marker{display:none}
+  .acc > summary .chev{margin-left:auto;color:var(--ink-faint);transition:.2s;font-size:13px}
+  .acc[open] > summary .chev{transform:rotate(90deg)}
+  .acc > summary .num{font-size:11.5px;font-weight:600;color:var(--ink-faint);background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:2px 9px}
+  .acc-body{padding:8px 20px 20px}
+  .bank-group{margin-top:14px}
+  .bank-group > .gh{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-faint);font-weight:700;margin:14px 0 6px;display:flex;align-items:center;gap:8px}
+  .bank-group > .gh .lvtag{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700}
+  .bank-item{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .bank-item:last-child{border-bottom:none}
+  .bank-item input.tx,.bank-item textarea.tx{
+    flex:1;font-family:var(--sans);font-size:13px;padding:7px 10px;border:1px solid var(--line-strong);
+    border-radius:8px;background:var(--paper);color:var(--ink);line-height:1.45;
+  }
+  .bank-item textarea.tx{min-height:38px;resize:vertical;font-family:var(--serif);font-size:13.5px}
+  .bank-item .tag-sel{font-size:12px;padding:7px 8px;border:1px solid var(--line-strong);border-radius:8px;background:var(--card);color:var(--ink-soft)}
+  .add-line{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .add-line input,.add-line textarea,.add-line select{
+    font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--card);color:var(--ink);
+  }
+  .add-line input.grow,.add-line textarea.grow{flex:1;min-width:160px}
+  /* ---------- Help ---------- */
+  .help-wrap{padding:30px 34px 70px;max-width:760px;font-size:14.5px;line-height:1.7;color:var(--ink)}
+  .help-wrap h1{font-family:var(--serif);font-size:26px;margin:0 0 4px}
+  .help-wrap .lead{color:var(--ink-soft);margin:0 0 24px}
+  .help-wrap h3{font-family:var(--serif);font-size:18px;margin:26px 0 6px;color:var(--accent-d)}
+  .help-wrap p{margin:8px 0}
+  .help-wrap ol,.help-wrap ul{margin:8px 0;padding-left:22px}
+  .help-wrap li{margin:5px 0}
+  .help-wrap .callout{border-left:3px solid var(--growth);background:var(--growth-bg);padding:12px 16px;border-radius:0 10px 10px 0;margin:16px 0;font-size:13.5px}
+  .help-wrap .callout b{color:var(--growth)}
+  .kbd{font-family:var(--serif);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:13px}
+  .hide{display:none!important}
+
+  /* grouped save/load controls */
+  .data-group{ display:inline-flex; align-items:center; gap:7px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:11px; background:rgba(40,34,20,.025); position:relative; }
+  /* per-bank share controls on the Comment bank page */
+  .share-bank{ display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; margin:2px 0 14px; padding:8px 12px; border:1px dashed var(--line-strong); border-radius:11px; background:rgba(15,111,99,.045); }
+  .share-label{ font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent-d); }
+  .data-group-label{ position:absolute; top:-8px; left:11px; padding:0 5px; background:var(--paper); font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); }
+  /* "Download copy" confirmation modal */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(24,19,11,.5); display:flex; align-items:center; justify-content:center; z-index:1000; padding:22px; }
+  .modal-card{ background:var(--card); border:1px solid var(--line-strong); border-radius:15px; max-width:470px; padding:24px 26px; box-shadow:0 20px 60px rgba(24,19,11,.32); }
+  .modal-card h3{ margin:0 0 12px; font-size:19px; }
+  .modal-card p{ margin:0 0 13px; line-height:1.55; }
+  .modal-note{ font-size:13px; color:var(--ink-soft); }
+  .modal-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+  /* Copy-paste AI prompt box (Help) */
+  .prompt-box{ border:1px solid var(--line-strong); border-radius:11px; overflow:hidden; margin:12px 0 18px; background:var(--card); box-shadow:var(--shadow); }
+  .prompt-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 13px; background:var(--paper2); border-bottom:1px solid var(--line); }
+  .prompt-head .lbl{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); }
+  .prompt-text{ margin:0; padding:14px 15px; max-height:360px; overflow:auto; white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace; font-size:12px; line-height:1.5; color:var(--ink); background:var(--card); tab-size:2; }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <div class="title"><b>E-Marking</b></div>
+    <div class="sub" id="subline">Report Card Comments · v2026.06.17</div>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="write">Write comments</button>
+    <button class="tab" data-tab="bank">Comment bank</button>
+    <button class="tab" data-tab="help">Help</button>
+  </nav>
+  <div class="bank-picker">
+    <label>Bank</label>
+    <select id="subjectSel"></select>
+    <button class="btn newbank" id="newSubjectBtn" title="Start a comment bank for another subject">+ New</button>
+  </div>
+  <div class="bar-right">
+    <span class="dirty" id="dirtyFlag"><span class="dot"></span>Unsaved — save before closing</span>
+    <div class="data-group" title="Save your work, or load it back later">
+      <span class="data-group-label">Save &amp; load</span>
+      <button class="btn" id="importBtn" title="Open a saved data file — all your subjects and your class list. To add one subject a colleague shared, use the Comment bank tab instead.">Import data</button>
+      <button class="btn" id="exportBtn" title="Save all your work — every subject's comments and your class list — as one .json file you can re-open with Import data.">Export data</button>
+      <button class="btn primary" id="saveCopyBtn" title="Download a fresh copy of this whole app with your data baked in — re-open it directly next time, no separate file needed">Download copy</button>
+    </div>
+    <button class="btn ghost sm" id="resetBtn" title="Restore the built-in version of the bank you're viewing">Reset bank</button>
+    <input type="file" id="fileInput" accept="application/json,.json" class="hide">
+    <input type="file" id="bankFileInput" accept="application/json,.json" class="hide">
+  </div>
+</header>
+
+<!-- ============ WRITE ============ -->
+<main id="tab-write" class="active">
+  <div class="write-grid">
+    <aside class="roster">
+      <h2>Class list</h2>
+      <div class="add-row">
+        <input id="newFirst" placeholder="First name" autocomplete="off">
+        <input id="newLast" placeholder="Last (optional)" autocomplete="off">
+      </div>
+      <div class="add-row">
+        <select id="newPron" class="pron-mini" title="How to refer to this student">
+          <option value="name">Use name only (recommended)</option>
+          <option value="she">she / her</option>
+          <option value="he">he / him</option>
+          <option value="they">they / them</option>
+        </select>
+        <button class="btn primary sm" id="addStudent">Add</button>
+      </div>
+      <div class="add-row" style="margin-bottom:2px">
+        <input id="rosterFilter" placeholder="Filter students…" autocomplete="off">
+        <button class="btn sm" id="bulkAddBtn" title="Add many students at once by pasting a list (one per line)">Paste list</button>
+      </div>
+      <div class="student-list" id="studentList"></div>
+      <div class="roster-count" id="rosterCount"></div>
+      <div id="rosterIssues"></div>
+    </aside>
+
+    <section class="panel" id="builder"></section>
+  </div>
+</main>
+
+<!-- ============ BANK ============ -->
+<main id="tab-bank">
+  <div class="bank-wrap" id="bankWrap"></div>
+</main>
+
+<!-- ============ HELP ============ -->
+<main id="tab-help">
+  <div class="help-wrap">
+    <h1>How this works</h1>
+    <p class="lead">A free, self-contained tool for building report-card comments. Open it from a web link or from a file on your computer — either way it runs entirely in your browser. Nothing you type is uploaded or stored online; your class list and comments stay with you.</p>
+    <p style="margin:-6px 0 18px;color:var(--ink-faint);font-size:13px">E-Marking Comment Builder · Version 2026.06.17</p>
+
+    <div class="callout">
+      <p style="margin:0 0 8px;font-weight:700;font-size:15px">⚠ Saving your work — please read this first</p>
+      <p style="margin:0 0 10px"><b>There is no autosave, and nothing is stored online or inside this page.</b> Everything you do — your students and every edit to the comment bank — lives only in your browser until you save it to a file. Close the tab without saving and it is gone.</p>
+      <p style="margin:0 0 6px">You have two ways to keep your work, both in the <b>Save &amp; load</b> group at the top right. Each one saves <b>everything</b> — every subject's comments <i>and</i> your class list:</p>
+      <ol style="margin:0 0 6px">
+        <li><b>Export data</b> saves a small <span class="kbd">.json</span> file to your Downloads. Keep it somewhere safe (a cloud drive or USB stick) — it is your only copy. Next time, click <b>Import data</b> and choose that file to pick up exactly where you left off.</li>
+        <li><b>Download copy</b> instead saves a fresh copy of this whole page with your work <b>baked inside it</b>. Re-open that downloaded file and everything is already there — no import step. (Browsers can't open the new file for you, so it's a quick manual hand-off.)</li>
+      </ol>
+      <p style="margin:0">Use whichever you prefer; both are always available, and you can re-save whenever you've made changes worth keeping. <b>Sharing a single subject with a colleague is a different thing</b> with its own buttons — see <i>Sharing one subject</i> near the bottom.</p>
+    </div>
+
+    <h3>Writing a comment</h3>
+    <ol>
+      <li>Add your students on the left and choose how each should be referred to. To add a whole class at once, click <b>Paste list</b> and paste names one per line — a plain name, or columns copied straight from a spreadsheet (First, Last, Pronouns).</li>
+      <li>Click a student, then add one or more <b>Strengths</b> and <b>Growth</b> areas. In a long class, the <b>Filter students…</b> box jumps to a name quickly.</li>
+      <li>For each line, pick the <b>level</b> (1–4), the <b>stem</b>, and the <b>evidence</b> (what the student actually did). In any bank that lists assignments you can also name the <b>assignment</b> it came from. The sentence assembles itself underneath.</li>
+      <li>Add an optional <b>note</b> for anything that doesn't fit the picker — a custom remark, an individual-plan goal, and so on. It is appended to the end of the comment.</li>
+      <li>Click <b>Copy comment</b> and paste it wherever you enter report-card comments. The <b>‹ Prev</b> / <b>Next ›</b> buttons beside it step through your class without going back to the list, so you can copy, advance, copy, advance — and a small count (e.g. <span class="kbd">7 / 30</span>) shows where you are.</li>
+    </ol>
+    <p>A small ✓/⚠ marker on each line shows when a piece is still missing. If a student has been started but a line is incomplete — a strength with no evidence, or a growth with no next step — a <b>Needs attention</b> list appears under the class list; click a name there to jump straight to that student.</p>
+
+    <h3>Default picks (optional)</h3>
+    <p>For any subject you can set what a brand-new Strength or Growth starts with, so you're not re-picking the same stem and evidence every time. On the <b>Comment bank</b> tab, expand <b>Default picks for new strengths / growths</b> and add up to three of each. The first line you add to a student uses #1, the second #2, the third #3; after that, new lines start blank. The level and proficiency word are still chosen per student.</p>
+
+    <h3>Other comments</h3>
+    <p>The <b>Other comments</b> section adds standalone statements that aren't tied to a particular strength or growth. Pick one of the built-in statements and tick the stem(s) it applies to — the wording switches between singular and plural automatically — or choose <b>✎ Write my own…</b> to type a free-text comment for that student. You can reword, add, or remove these on the Comment bank tab; they are shared across all subjects.</p>
+
+    <h3>Different subjects</h3>
+    <p>The <b>Bank</b> menu at the top holds a separate comment bank for each subject — <b>Science 9, English 9, Social 9, Math 9, CTF 8/9, English 6, Social 6, CTF 6</b> and <b>Music 7-9</b> come ready to use. Switch between them with that menu, or click <b>+ New</b> to start another subject and build its own stems and evidence. Each student keeps separate comments in each subject, and the active subject is shown beside their name. It all lives in the one file you save.</p>
+
+    <h3>How each line is built</h3>
+    <p>Every line is assembled from a few pieces so your comments stay consistent: a <b>stem</b> (the area being reported on), a <b>proficiency word</b>, and <b>evidence</b> of what the student did — and every Growth line ends with a <b>next step</b>. You choose the pieces; the tool handles the grammar, the a/an, and the punctuation.</p>
+
+    <h3>Pronouns</h3>
+    <p>The default is <b>name only</b> — the comment uses the student's name and avoids he/she/they. You can set <b>she/her</b>, <b>he/him</b>, or <b>they/them</b> per student, and the wording (verbs and possessives) adjusts automatically. Use whatever matches your school's practice for names and pronouns.</p>
+
+    <h3>Editing your comment bank</h3>
+    <p>Open the <b>Comment bank</b> tab to reword, add, or delete any option — proficiency words, stems, evidence, assignments, growth focuses, and next steps. This is where you tailor each subject to what you actually taught this term. A few extra controls live there too:</p>
+    <ul>
+      <li><b>uses units</b> — for subjects that organize work into topics or units (common in Science). When on, you can group evidence by unit and choose whether the unit name appears in the comment.</li>
+      <li><b>say &ldquo;understanding&rdquo;</b> — makes lines read &ldquo;demonstrates an excellent <i>understanding</i> in&hellip;&rdquo; instead of &ldquo;excellent <i>proficiency</i> in&hellip;&rdquo; (the <i>a</i>/<i>an</i> is handled for you).</li>
+      <li><b>evidence varies by level</b> — gives each piece of evidence four versions (4/3/2/1), so the wording itself shifts with the level rather than only the proficiency word.</li>
+      <li>Each <b>assignment</b> can be available on every stem, or limited to one (for example, an essay that only belongs under Writing).</li>
+    </ul>
+    <p>When you write your own wording, these placeholders fill in per student:</p>
+    <ul>
+      <li><span class="kbd">{name}</span> → the student's name</li>
+      <li><span class="kbd">{sub}</span> → he / she, or the name for they/them and name-only (keeps verbs correct)</li>
+      <li><span class="kbd">{their}</span> → his / her / their / the name's</li>
+      <li><span class="kbd">{poss}</span> → his / her / their, or "the" when no pronoun is set (avoids repeating the name)</li>
+      <li><span class="kbd">{they}</span> · <span class="kbd">{them}</span> · <span class="kbd">{theyre}</span> for he/she/they forms</li>
+      <li><span class="kbd">{stems}</span> → the stem name(s) ticked on an Other comment</li>
+      <li><span class="kbd">{outcome|outcomes}</span> → picks the first word for one stem, the second for several</li>
+    </ul>
+
+    <h3>Build a comment bank with AI (from your old comments)</h3>
+    <p>Rather than filling a new subject in by hand, you can have an AI assistant draft one from material you already have. Paste the prompt below into ChatGPT, Claude, Copilot, or Gemini, then add your own past report-card comments, a course outline, or simply a list of what you assessed this term. It returns a ready-made bank file.</p>
+    <ol>
+      <li>Click <b>Copy prompt</b> below and paste it into your AI assistant.</li>
+      <li>At the very bottom of the prompt, replace the bracketed line with your own past comments / outline / assessment list, then send it.</li>
+      <li>Save the AI's reply as a file ending in <span class="kbd">.json</span> (for example <span class="kbd">math8-bank.json</span>).</li>
+      <li>Open the <b>Comment bank</b> tab, click <b>Add a shared bank</b>, and choose that file. It arrives as a new subject in your <b>Bank</b> menu — then tidy any wording right in the editor.</li>
+    </ol>
+    <p class="modal-note" style="margin:-2px 0 9px">Anything you import is checked and cleaned automatically, so a slightly imperfect file won't break the tool — but give the result a quick read, since an AI can occasionally invent an assessment you didn't mention.</p>
+    <div class="prompt-box">
+      <div class="prompt-head"><span class="lbl">Prompt to copy</span><button class="btn sm" id="copyPromptBtn">Copy prompt</button></div>
+      <pre class="prompt-text" id="aiPromptText">You are helping a teacher build a "comment bank" for a tool called the E-Marking Comment Builder. Turn the teacher's material (at the very bottom) into ONE valid JSON object in the exact format shown below. Output only the JSON, with no commentary and no code fences, so it can be saved straight to a .json file and imported.
+
+HOW THE TOOL BUILDS A COMMENT
+The teacher never types whole sentences. They pick small pieces and the tool joins them, so you are writing those pieces. There are two kinds of lines:
+
+STRENGTH:
+  "{name} demonstrates [WORD] proficiency [STEM-PREP] This was observed when {sub} [TASK]"
+  Example: "Maria demonstrates strong proficiency in analyzing and solving problems through scientific reasoning. This was observed when she completed the long-answer section of her unit test."
+    WORD      = a proficiency descriptor, e.g. "strong"
+    STEM-PREP = "in analyzing and solving problems through scientific reasoning."
+    TASK      = "completed the long-answer section of {their} unit test."
+
+GROWTH:
+  "{name} demonstrates [WORD] proficiency [STEM-PREP] As a next step, {sub} is encouraged [ACTION] [GOAL]"
+  Example: "Maria demonstrates developing proficiency in developing skills for inquiry and communication. As a next step, she is encouraged to plan investigations more carefully to reach clearer evidence-based conclusions."
+    ACTION = "to plan investigations more carefully"        (NO ending period)
+    GOAL   = "to reach clearer evidence-based conclusions."  (ends with a period)
+
+So every line opens the same way ("{name} demonstrates ___ proficiency" + the stem's prep phrase), then adds evidence (strength) or a next step (growth).
+
+WRITING RULES (these are what keep the assembled sentences grammatical)
+1. Write every TASK, ACTION and GOAL so it continues from a SINGULAR third-person subject (he / she / the student's name). Use singular verbs: "completed", "used", "solves", "demonstrates" -- never "complete" or "completing".
+   TASK   follows "...when {sub} "       e.g. "completed a lab on chemical reactions."
+   ACTION follows "...is encouraged "     e.g. "to revise written work before submitting"
+   GOAL   follows the action              e.g. "to communicate ideas more clearly."
+2. STEM-PREP completes "demonstrates ___ proficiency ___". Begin it with a preposition (in / when / while / with) and END IT WITH A PERIOD, e.g. "in understanding key concepts."
+3. Periods: STEM-PREP, TASK and GOAL each END WITH A PERIOD. ACTION has NO period (a goal is added after it); if an action has no goal, then give it a period. Descriptor words carry NO punctuation.
+4. Placeholders you may use inside any TASK / ACTION / GOAL (the tool fills them in per student): {their} = his/her/their/the name's; {sub} = he/she/the name; {poss} = his/her/their, or "the". Use {their} for possessives ("completed {their} test."); never write "his/her".
+5. Use Canadian spelling (organize, behaviour, colour, analyze, centre).
+6. Keep everything the teacher gives you; invent only what is needed to fill gaps, and keep all wording professional and report-card appropriate.
+
+OUTPUT THIS JSON (a complete, valid example -- keep the structure and rules, replace the contents with the teacher's subject):
+
+{
+  "emarkingBank": true,
+  "version": 3,
+  "subject": "English 7",
+  "bank": {
+    "division": "",
+    "usesUnits": false,
+    "unitsInComment": true,
+    "headNoun": "proficiency",
+    "leveledEvidence": false,
+    "assignmentConnector": "This was observed in {a}",
+    "descriptors": {
+      "4": ["exemplary", "exceptional", "insightful", "sophisticated"],
+      "3": ["skilled", "clear", "competent", "thorough", "effective"],
+      "2": ["adequate", "basic", "developing", "general"],
+      "1": ["emerging", "beginning", "novice", "foundational"]
+    },
+    "stems": [
+      { "id": "rd", "label": "Reading", "prep": "in reading to construct meaning from a range of texts." },
+      { "id": "wr", "label": "Writing", "prep": "in writing to communicate clearly for a purpose." }
+    ],
+    "units": [],
+    "tasks": [
+      { "id": "t_rd1", "stemId": "rd", "text": "responded to comprehension questions on a short story, supporting answers with details from the text." },
+      { "id": "t_rd2", "stemId": "rd", "text": "identified the main idea and supporting evidence in an informational article." },
+      { "id": "t_wr1", "stemId": "wr", "text": "wrote a structured paragraph with a clear topic sentence and supporting details." },
+      { "id": "t_wr2", "stemId": "wr", "text": "revised a piece of writing to improve its organization and word choice." }
+    ],
+    "assignments": [],
+    "actions": [
+      { "id": "a_rd", "stemId": "rd", "text": "to read a wider range of texts and note unfamiliar vocabulary" },
+      { "id": "a_wr", "stemId": "wr", "text": "to plan writing before drafting" }
+    ],
+    "nextSteps": [
+      { "id": "g_rd", "stemId": "rd", "text": "to deepen {their} comprehension of more challenging material." },
+      { "id": "g_wr", "stemId": "wr", "text": "to produce clearer, better-organized writing." }
+    ],
+    "strengthDefaults": [],
+    "growthDefaults": []
+  }
+}
+
+FIELD NOTES
+- "subject": the bank's name in the Bank menu; keep it short, like "Subject Grade" (e.g. "Math 8").
+- "stems": the 3 to 6 reporting strands of the subject (e.g. Reading, Writing; or Understanding, Reasoning, Inquiry). Each needs a unique short "id" and a "prep" phrase (rule 2).
+- "descriptors": proficiency words for level 4 (highest) down to 1 (lowest). Keep or tailor the sample words; each level needs at least one.
+- "headNoun": keep "proficiency" unless you prefer lines like "demonstrates a strong understanding in..." -- then use "understanding".
+- "tasks": the STRENGTH evidence -- things a student did that show the strength. Tie each to a stem with "stemId". Aim for several per stem; each ends with a period (rule 3).
+- "actions" / "nextSteps": the GROWTH pieces. action = what to work on (no period); nextStep = the goal it builds toward (period). Set "stemId":"" to offer a piece on every stem, or a stem id to limit it to that stem.
+- "assignments" (optional): named pieces of work, e.g. { "id": "ess", "text": "the In-Class Essay", "stemId": "" }. If set, a strength can be tied to one and reads "This was observed in the In-Class Essay, where {sub} ...". Most banks can leave this [].
+- "units" (optional, mainly for Science): set "usesUnits": true and list { "id": "u1", "label": "Chemistry", "context": "our chemistry unit" }, then give each task a matching "unitId"; the line then reads "This was observed during our chemistry unit when {sub} ...". If unsure, leave "usesUnits": false and "units": [].
+- IDs may be any short unique strings; every "stemId" and "unitId" must match an id you defined above.
+
+THE TEACHER'S MATERIAL (the more you paste, the better the bank):
+[ PASTE YOUR PAST REPORT-CARD COMMENTS, COURSE OUTLINE, OR LIST OF ASSESSMENTS HERE ]</pre>
+    </div>
+
+    <h3>Sharing one subject with a colleague</h3>
+    <p>Sharing a single subject's bank is <b>separate from saving your own work</b>. It has its own buttons on the <b>Comment bank</b> tab — not the <b>Save &amp; load</b> group at the top, which always handles your <i>whole</i> file (every subject plus your class list).</p>
+    <p>To send a colleague one subject, without your class list or your other subjects: open the <b>Comment bank</b> tab, switch to that subject, and click <b>Share this bank</b> — it downloads a small bank file. Your colleague opens their own copy, goes to the <b>Comment bank</b> tab, and clicks <b>Add a shared bank</b> to load it. It arrives as a new subject in their <b>Bank</b> menu; if they already have a subject with that name, they're asked whether to replace it or keep both.</p>
+
+    <h3>Sharing the whole tool</h3>
+    <p>To give someone the entire tool, send them this HTML file, or the web link if it's hosted — no accounts, no sign-in. They can start using it immediately and save their own work the same way you do.</p>
+  </div>
+</main>
+
+<script id="emarking-saved-data" type="application/json"></script>
+<script>
+/* ============================================================================
+   E-Marking Comment Builder — single-file app. No build step, no dependencies,
+   no network requests, no storage APIs (no localStorage/cookies). Runs by
+   double-click (file://) or from a static host such as GitHub Pages (https://).
+   Everything is vanilla JS plus the inline <head>/<style> above.
+
+   PERSISTENCE / BACKUP — there is no server and nothing is saved automatically.
+   A user's work lives only in files they download:
+     • "Save / download copy"  -> bakeHTML() writes a fresh copy of THIS page with
+       the data embedded in the inert <script id="emarking-saved-data"> island.
+       Re-opening that file restores the work (loader at the very bottom). "</" is
+       rewritten to "<\/" so comment text can never close the island tag early, and
+       the island is type="application/json" so it never executes.
+     • "Export data" / "Import data"  -> the same full state as a .json file.
+
+   COMMENT BANKS — built-in banks are the *_BANK consts, registered in BOTH
+   DEFAULTS.banks (the seed) and ORIGINAL_BANKS (pristine copy used by "Reset
+   bank"). To ship a new built-in bank: add a const, then add it to both maps
+   under the same display name. A single bank can be shared between teachers via
+   exportBank()/importBank(), which read/write
+   { emarkingBank:true, version:N, subject, bank } as pretty-printed,
+   diff-friendly JSON — the natural artifact for a review/submission workflow.
+
+   IMPORTING UNTRUSTED BANKS — normalizeBank() is the single validation gate for
+   any bank entering from outside the seed (imported file, baked island, or a
+   future community submission). It coerces field types, fills missing flags,
+   drops malformed entries, and guarantees the four descriptor levels, so a bad
+   or hostile bank fails safe instead of throwing. Bank text always reaches the
+   DOM through esc() or textContent, never raw innerHTML. Route ANY new bank
+   ingest through normalizeBank().
+   ============================================================================ */
+
+/* A pristine snapshot of this page, taken before anything renders, so the
+   "Download copy" button can bake the current data into a fresh, self-contained file. */
+var ORIGINAL_HTML = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+/* ============================================================
+   DATA — built-in banks. Banks are subject-specific.
+   "Other comments" (NATR/NER/EAL) are shared across every bank.
+   Everything is editable and saved to JSON.
+   ============================================================ */
+const DEFAULT_DESCRIPTORS = {
+  "4":["exemplary","exceptional","comprehensive","insightful","masterful","sophisticated"],
+  "3":["skilled","well-developed","acceptable","clear","competent","thorough","effective"],
+  "2":["adequate","basic","developing","concrete","general","sufficient"],
+  "1":["emerging","beginning","novice","preliminary","foundational","initial"]
+};
+/* Division II / Grade 6 proficiency words, on a standard four-level scale
+   (Excellent=4, Good/Proficient=3, Basic/Developing=2,
+   Beginning=1). Used by the English 6 and Social 6 banks. */
+const GRADE6_DESCRIPTORS = {
+  "4":["excellent","exemplary","comprehensive","complex","highly accurate","insightful","sophisticated","masterful","exceptional"],
+  "3":["effective","competent","clear","efficient","skilled","thorough","well-developed","adept"],
+  "2":["acceptable","adequate","sufficient","general","simplistic","basic","concrete"],
+  "1":["emerging","beginning","novice","initial","preliminary","foundational"]
+};
+const DEFAULT_OTHER_COMMENTS = [
+  {id:"oc_natr", label:"NATR — Not Applicable This Report", usesStems:true,
+    text:"{Outcome|Outcomes} from {stems} {has|have} not been taught and assessed in the reporting period, as a result the indicator Not Applicable This Report (NATR) has been used."},
+  {id:"oc_ner", label:"NER — No Evidence to Report", usesStems:true,
+    text:"There is insufficient evidence of learning at this time to report on {name}'s understanding in the {stems} {outcome|outcomes}. Through ongoing communication, the school has shared concerns about {name}'s limited engagement in learning in these areas."},
+  {id:"oc_eal", label:"EAL — English as an Additional Language", usesStems:false,
+    text:"The EAL indicator communicates that {name} is not yet able to access the content associated with identified outcomes. Progress and achievements with English Language Learning is communicated through the use of Language Proficiency (LP)."}
+];
+
+const SCIENCE_BANK = {
+  division:"III",
+  usesUnits:true,
+  stems:[
+    {id:"st_u", label:"Understanding", prep:"in understanding and making connections between concepts."},
+    {id:"st_r", label:"Reasoning",     prep:"in analyzing and solving problems through scientific reasoning."},
+    {id:"st_i", label:"Inquiry",       prep:"in developing skills for inquiry and communication."},
+    {id:"st_e", label:"Explores",      prep:"in exploring scientific events and issues in society and the environment."}
+  ],
+  descriptors: DEFAULT_DESCRIPTORS,
+  units:[
+    {id:"un_chem",  label:"Chemistry",               context:"our chemistry unit"},
+    {id:"un_env",   label:"Environmental Chemistry", context:"our environmental chemistry unit"},
+    {id:"un_space", label:"Space and Exploration",   context:"our space and exploration unit"},
+    {id:"un_elec",  label:"Electricity",             context:"our electricity unit"}
+  ],
+  tasks:[
+    // Understanding
+    {id:"t1", stemId:"st_u", unitId:"un_chem",  text:"completed the short answer section of {their} ionic vs. covalent compounds quiz."},
+    {id:"t2", stemId:"st_u", unitId:"un_chem",  text:"completed an ions and ionic compounds quiz."},
+    {id:"t3", stemId:"st_u", unitId:"un_chem",  text:"completed the multiple choice section of {their} chemistry unit test, based on PAT-style questions."},
+    {id:"t4", stemId:"st_u", unitId:"un_env",   text:"completed the multiple choice section of {their} environmental chemistry unit test, based on PAT-style questions."},
+    {id:"t5", stemId:"st_u", unitId:"un_space", text:"completed the multiple choice section of {their} space and exploration unit test, based on PAT-style questions."},
+    // Reasoning
+    {id:"t6", stemId:"st_r", unitId:"un_chem",  text:"completed the long answer section of {their} ionic vs. covalent compounds quiz."},
+    {id:"t7", stemId:"st_r", unitId:"un_chem",  text:"completed the long answer section of {their} chemistry unit test."},
+    {id:"t8", stemId:"st_r", unitId:"un_chem",  text:"completed an assignment comparing ionic and covalent compounds."},
+    {id:"t9", stemId:"st_r", unitId:"un_elec",  text:"completed a mathematics-based quiz on current, voltage, and resistance."},
+    {id:"t10",stemId:"st_r", unitId:"un_elec",  text:"completed a mathematics-based quiz on power and energy."},
+    {id:"t11",stemId:"st_r", unitId:"un_elec",  text:"completed the long answer section of {their} electricity unit test."},
+    // Inquiry
+    {id:"t12",stemId:"st_i", unitId:"un_env",   text:"investigated which pond was responsible for killing the fish in a simulation assignment."},
+    {id:"t13",stemId:"st_i", unitId:"un_chem",  text:"produced a formal lab write-up, in a group, on a mystery white powder."},
+    {id:"t14",stemId:"st_i", unitId:"un_chem",  text:"completed a lab supporting the law of conservation of mass by comparing the mass before and after a chemical reaction."},
+    {id:"t15",stemId:"st_i", unitId:"un_elec",  text:"used AI to research how to stay safe during lightning, then built a presentation for {their} peers by re-wording the ideas and looking up new terms."},
+    // Explores
+    {id:"t16",stemId:"st_e", unitId:"un_env",   text:"participated in a lab testing our nearby pond."},
+    {id:"t17",stemId:"st_e", unitId:"un_env",   text:"researched and produced a presentation for {their} peers on an environmental issue affecting our world."},
+    {id:"t18",stemId:"st_e", unitId:"un_elec",  text:"used AI to research how to stay safe during a lightning storm, then built a presentation for {their} peers by re-wording the ideas and looking up new terms."}
+  ],
+  actions:[
+    {id:"a1", stemId:"st_u", text:"to engage fully with chemistry topics that build foundational knowledge"},
+    {id:"a2", stemId:"st_u", text:"to engage fully with environmental chemistry topics that build foundational knowledge"},
+    {id:"a3", stemId:"st_u", text:"to engage fully with electricity topics that build foundational knowledge"},
+    {id:"a4", stemId:"st_r", text:"to engage fully with chemistry topics that involve applying {their} understanding"},
+    {id:"a5", stemId:"st_r", text:"to engage fully with environmental chemistry topics that involve applying {their} understanding"},
+    {id:"a6", stemId:"st_r", text:"to engage fully with electricity topics that involve applying {their} understanding"},
+    {id:"a7", stemId:"st_i", text:"to engage fully with chemistry topics that involve investigating and articulating ideas in different ways"},
+    {id:"a8", stemId:"st_i", text:"to engage fully with environmental chemistry topics that involve investigating and articulating ideas in different ways"},
+    {id:"a9", stemId:"st_i", text:"to engage fully with electricity topics that involve investigating and articulating ideas in different ways"},
+    {id:"a10",stemId:"st_e", text:"to engage fully with chemistry topics that connect to real-life events"},
+    {id:"a11",stemId:"st_e", text:"to engage fully with environmental chemistry topics that connect to real-life events"},
+    {id:"a12",stemId:"st_e", text:"to engage fully with electricity topics that connect to real-life events"}
+  ],
+  nextSteps:[
+    {id:"n1", stemId:"st_u", text:"to deepen {their} understanding of these concepts."},
+    {id:"n2", stemId:"st_r", text:"to strengthen {their} scientific reasoning."},
+    {id:"n3", stemId:"st_i", text:"to build {their} inquiry and communication skills."},
+    {id:"n4", stemId:"st_e", text:"to broaden {their} understanding of science in society and the environment."}
+  ]
+};
+
+const ENGLISH_BANK = {
+  division:"III",
+  usesUnits:false,
+  stems:[
+    {id:"ela_write",  label:"Writing",        prep:"in writing."},
+    {id:"ela_read",   label:"Reading",        prep:"in reading."},
+    {id:"ela_speak",  label:"Speaking",       prep:"in speaking."},
+    {id:"ela_manage", label:"Managing Ideas", prep:"in managing ideas and information."},
+    {id:"ela_rep",    label:"Representing",   prep:"in representing ideas using a variety of media."},
+    {id:"ela_listen", label:"Listening",      prep:"in listening."}
+  ],
+  descriptors: clone(DEFAULT_DESCRIPTORS),
+  units:[],
+  assignmentConnector:"This was observed in {a}",
+  assignments:[
+    {id:"ea1", text:"the Podcast Listening Assessment"},
+    {id:"ea2", text:"the Indian Act Research Assignment"},
+    {id:"ea3", text:"the Long Way Down Final Project"},
+    {id:"ea4", text:"the In-Class Essay"},
+    {id:"ea5", text:"the Gratitude Persuasive Essay"},
+    {id:"ea6", text:"the My Immigration Story Presentation"},
+    {id:"ea7", text:"the Current Events Presentation"},
+    {id:"ea8", text:"the Business Email Assignment"}
+  ],
+  tasks:[
+    // Writing
+    {id:"ew1", stemId:"ela_write", unitId:"", text:"was able to write creatively with a variety of academic and descriptive language."},
+    {id:"ew2", stemId:"ela_write", unitId:"", text:"was able to write using complete sentences that accurately communicated ideas."},
+    {id:"ew3", stemId:"ela_write", unitId:"", text:"was able to generate new ideas about a topic and use them to create a short writing piece."},
+    {id:"ew4", stemId:"ela_write", unitId:"", text:"skillfully identified a thesis statement which included a claim and three supporting reasons."},
+    {id:"ew5", stemId:"ela_write", unitId:"", text:"is beginning to develop a five-paragraph essay which includes a thesis statement and supporting evidence."},
+    {id:"ew6", stemId:"ela_write", unitId:"", text:"was beginning to edit {their} work for clarity and fluency before submission."},
+    {id:"ew7", stemId:"ela_write", unitId:"", text:"was able to edit writing carefully for clarity and fluency before submission."},
+    {id:"ew8", stemId:"ela_write", unitId:"", text:"developed a five-paragraph essay which included a thesis statement and a variety of supporting details."},
+    {id:"ew9", stemId:"ela_write", unitId:"", text:"was able to create a properly structured business email that followed information from a specific prompt."},
+    // Reading
+    {id:"er1", stemId:"ela_read", unitId:"", text:"skillfully chose relevant symbols and quotes and identified the motivations of characters found in the novel study."},
+    {id:"er2", stemId:"ela_read", unitId:"", text:"was able to summarize some key information found in the novel study to create a simple project."},
+    {id:"er3", stemId:"ela_read", unitId:"", text:"demonstrated a good understanding of the novel through the inclusion of significant symbols and quotes in {their} final project."},
+    {id:"er4", stemId:"ela_read", unitId:"", text:"is working to identify key symbols found in the novel study."},
+    // Speaking
+    {id:"es1", stemId:"ela_speak", unitId:"", text:"was able to speak with increasing confidence while relying on notes for support."},
+    {id:"es2", stemId:"ela_speak", unitId:"", text:"is learning to speak clearly, confidently and in an appropriate tone and volume during presentations."},
+    {id:"es3", stemId:"ela_speak", unitId:"", text:"was able to speak clearly and confidently using notes as a support tool."},
+    {id:"es4", stemId:"ela_speak", unitId:"", text:"communicated ideas clearly and confidently, using appropriate tone and body language, captivating the audience's interest and attention during presentations."},
+    // Managing Ideas
+    {id:"em1", stemId:"ela_manage", unitId:"", text:"was able to skillfully identify correct information and integrate details and evidence into a logical response."},
+    {id:"em2", stemId:"ela_manage", unitId:"", text:"was able to identify correct information and integrate some details and evidence into a structured response."},
+    {id:"em3", stemId:"ela_manage", unitId:"", text:"is beginning to identify correct information and integrate details and evidence into a structured response."},
+    // Representing
+    {id:"ep1", stemId:"ela_rep", unitId:"", text:"used a variety of techniques to create a visual project that portrayed a strong understanding of the film."},
+    {id:"ep2", stemId:"ela_rep", unitId:"", text:"used some different elements to create a visual project that portrayed an understanding of the film."},
+    {id:"ep3", stemId:"ela_rep", unitId:"", text:"is beginning to implement some colour into {their} project to show an understanding of the film."},
+    {id:"ep4", stemId:"ela_rep", unitId:"", text:"used a variety of techniques to create a visual project that portrayed a strong understanding of the novel study."},
+    {id:"ep5", stemId:"ela_rep", unitId:"", text:"used some different elements to create a visual project that portrayed an understanding of the novel study."},
+    {id:"ep6", stemId:"ela_rep", unitId:"", text:"is beginning to implement some colour into {their} project to show an understanding of the novel study."},
+    // Listening
+    {id:"el1", stemId:"ela_listen", unitId:"", text:"was able to create thoughtful and correct reflections based on ideas heard in podcasts played in class."},
+    {id:"el2", stemId:"ela_listen", unitId:"", text:"was able to create basic reflections based on ideas heard in podcasts played in class."},
+    {id:"el3", stemId:"ela_listen", unitId:"", text:"was beginning to create reflections based on ideas heard in podcasts in class."}
+  ],
+  actions:[
+    // Writing
+    {id:"ewa1", stemId:"ela_write", text:"to identify symbols and figurative language"},
+    {id:"ewa2", stemId:"ela_write", text:"to include direct quotations as evidence"},
+    {id:"ewa3", stemId:"ela_write", text:"to proofread out loud"},
+    {id:"ewa4", stemId:"ela_write", text:"to continue experimenting with academic vocabulary and tone"},
+    {id:"ewa5", stemId:"ela_write", text:"to use precise vocabulary, incorporate descriptive language, and integrate vivid imagery"},
+    {id:"ewa6", stemId:"ela_write", text:"to elaborate on ideas, organize ideas and evidence into paragraphs, use transitions between main ideas, and edit for correct punctuation and spelling"},
+    {id:"ewa7", stemId:"ela_write", text:"to use various sentence structures, organize ideas into paragraphs, and self-edit for correct punctuation and spelling"},
+    // Reading
+    {id:"era1", stemId:"ela_read", text:"to continue finding books that engage critical thinking skills and inspire {their} natural curiosity"},
+    {id:"era2", stemId:"ela_read", text:"to make reading a daily habit"},
+    {id:"era3", stemId:"ela_read", text:"to use context clues while reading"},
+    {id:"era4", stemId:"ela_read", text:"to read texts of increasing complexity"},
+    {id:"era5", stemId:"ela_read", text:"to use annotations, make inferences, and ask questions while reading"},
+    {id:"era6", stemId:"ela_read", text:"to make personal connections to a given text"},
+    // Speaking
+    {id:"esa1", stemId:"ela_speak", text:"to experiment with fluctuation in volume and expression to maintain audience interest and emphasize key points during oral presentations"},
+    {id:"esa2", stemId:"ela_speak", text:"to practice difficult words beforehand and create a script to reference"},
+    {id:"esa3", stemId:"ela_speak", text:"to participate in small and large group discussions"},
+    {id:"esa4", stemId:"ela_speak", text:"to practice {their} script and make changes to increase fluency and understanding"}
+  ],
+  nextSteps:[
+    // Writing
+    {id:"ewg1", stemId:"ela_write", text:"to improve {their} writing."},
+    {id:"ewg2", stemId:"ela_write", text:"to organize {their} ideas clearly."},
+    {id:"ewg3", stemId:"ela_write", text:"to improve the fluency and clarity of {their} writing."},
+    {id:"ewg4", stemId:"ela_write", text:"in order to add depth to {their} writing."},
+    {id:"ewg5", stemId:"ela_write", text:"to enhance {their} writing skills."},
+    {id:"ewg6", stemId:"ela_write", text:"to engage the reader more effectively."},
+    {id:"ewg7", stemId:"ela_write", text:"to create imagery and establish a clear understanding of the reading."},
+    {id:"ewg8", stemId:"ela_write", text:"to develop new vocabulary."},
+    {id:"ewg9", stemId:"ela_write", text:"to craft an engaging introduction."},
+    // Reading
+    {id:"erg1", stemId:"ela_read", text:"to develop a detailed understanding of grade-level texts."},
+    {id:"erg2", stemId:"ela_read", text:"to enhance understanding of main ideas."},
+    {id:"erg3", stemId:"ela_read", text:"to improve comprehension and critical thinking skills."},
+    {id:"erg4", stemId:"ela_read", text:"to develop a love of reading through diverse texts."},
+    {id:"erg5", stemId:"ela_read", text:"to build background knowledge to support understanding."},
+    {id:"erg6", stemId:"ela_read", text:"to interpret figurative language and literary devices."},
+    {id:"erg7", stemId:"ela_read", text:"to expand vocabulary and word recognition."},
+    // Speaking
+    {id:"esg1", stemId:"ela_speak", text:"to enhance {their} presentation skills."},
+    {id:"esg2", stemId:"ela_speak", text:"to build confidence in {their} speaking abilities."},
+    {id:"esg3", stemId:"ela_speak", text:"to increase clarity and articulation when expressing ideas and thoughts."},
+    {id:"esg4", stemId:"ela_speak", text:"to use appropriate tone and body language to support communication."}
+  ]
+};
+
+const SOCIAL_BANK = {
+  division:"III",
+  usesUnits:false,
+  stems:[
+    {id:"soc_cit",      label:"Citizenship & Identity",   prep:"in demonstrating knowledge and understanding of citizenship and identity."},
+    {id:"soc_pov",      label:"Points of View",           prep:"in exploring events and issues from different points of view."},
+    {id:"soc_inq",      label:"Inquiry & Research",       prep:"in demonstrating skills and processes for inquiry and research."},
+    {id:"soc_persuade", label:"Persuasive Communication", prep:"in communicating ideas and information in a persuasive manner."}
+  ],
+  descriptors: clone(DEFAULT_DESCRIPTORS),
+  units:[],
+  assignmentConnector:"This was demonstrated through {poss} {a}",
+  assignments:[
+    {id:"soa1", text:"Collective Rights unit test"},
+    {id:"soa2", text:"Economics unit test"},
+    {id:"soa3", text:"Economics infographic"},
+    {id:"soa4", text:"Civic Mirror Participation"},
+    {id:"soa5", text:"Canada vs USA Long Answer Response"},
+    {id:"soa6", text:"Immigration quiz"},
+    {id:"soa7", text:"Treaty Map of Alberta"},
+    {id:"soa8", text:"Indian Act Research Assignment"}
+  ],
+  tasks:[
+    // Citizenship & Identity
+    {id:"sc1", stemId:"soc_cit", unitId:"", text:"successfully identified both individual and collective rights and how they contribute to quality of life in Canadian society."},
+    {id:"sc2", stemId:"soc_cit", unitId:"", text:"is beginning to demonstrate an understanding of collective and individual rights."},
+    {id:"sc3", stemId:"soc_cit", unitId:"", text:"demonstrated some knowledge of economic systems and how economies function."},
+    {id:"sc4", stemId:"soc_cit", unitId:"", text:"successfully interpreted sources and was able to apply {their} knowledge of economic systems."},
+    {id:"sc5", stemId:"soc_cit", unitId:"", text:"is beginning to demonstrate an understanding of how economics and quality of life are interconnected."},
+    {id:"sc6", stemId:"soc_cit", unitId:"", text:"actively contributed to our virtual country through participation in House of Commons and Townhall."},
+    {id:"sc7", stemId:"soc_cit", unitId:"", text:"sometimes contributed to our virtual country through participation in House of Commons and Townhall."},
+    {id:"sc8", stemId:"soc_cit", unitId:"", text:"demonstrated an understanding of the laws in our virtual country by applying them to {their} decisions during Open Market."},
+    // Persuasive Communication (sheet header "Communicates")
+    {id:"sm1", stemId:"soc_persuade", unitId:"", text:"identified {their} position about an economic issue and defended it using evidence to support {their} ideas."},
+    {id:"sm2", stemId:"soc_persuade", unitId:"", text:"identified {their} position about a specific economic issue and used some evidence to support {their} ideas."},
+    {id:"sm3", stemId:"soc_persuade", unitId:"", text:"identified {their} position about a specific economic issue and is working towards including evidence to support {their} ideas."},
+    // Inquiry & Research
+    {id:"si1", stemId:"soc_inq", unitId:"", text:"skillfully chose multiple sources to help establish context for the news article being analyzed."},
+    {id:"si2", stemId:"soc_inq", unitId:"", text:"was able to use a source that provides information about the country and news article being analyzed."},
+    {id:"si3", stemId:"soc_inq", unitId:"", text:"used some reliable sources to discuss a country and news article being analyzed."},
+    {id:"si4", stemId:"soc_inq", unitId:"", text:"created a marketing poster that skillfully reflected the interests and attributes of the person being targeted."},
+    {id:"si5", stemId:"soc_inq", unitId:"", text:"created a marketing poster that showed some reflective research into the person being targeted."},
+    // Points of View
+    {id:"sp1", stemId:"soc_pov", unitId:"", text:"thoughtfully connected the impacts of world events on {their} life and others around {them}."},
+    {id:"sp2", stemId:"soc_pov", unitId:"", text:"made some connections to world events and the impacts on {their} life as well as others around {them}."},
+    {id:"sp3", stemId:"soc_pov", unitId:"", text:"is beginning to make connections to world events and the impacts on {their} own life."}
+  ],
+  // Social's growth actions/goals are a shared pool (no stem grouping) — stemId "" means "any stem"
+  actions:[
+    {id:"sa1", stemId:"", text:"to continue to stay up to date on current events"},
+    {id:"sa2", stemId:"", text:"to find and record multiple sources when completing research"},
+    {id:"sa3", stemId:"", text:"to use a variety of techniques while writing or speaking"},
+    {id:"sa4", stemId:"", text:"to connect curricular concepts with real-world events"},
+    {id:"sa5", stemId:"", text:"to openly participate in classroom events, such as Civic Mirror"},
+    {id:"sa6", stemId:"", text:"to contribute to small group and whole class discussions"},
+    {id:"sa7", stemId:"", text:"to analyze sources like political cartoons and news articles for bias, perspective and reliability"},
+    {id:"sa8", stemId:"", text:"to use digital tools responsibly and effectively"},
+    {id:"sa9", stemId:"", text:"to conduct independent research on a topic of interest"},
+    {id:"sa10", stemId:"", text:"to support {their} opinions with relevant and specific information"},
+    {id:"sa11", stemId:"", text:"to use source analysis strategies"}
+  ],
+  nextSteps:[
+    {id:"sg1", stemId:"", text:"in order to broaden {their} understanding."},
+    {id:"sg2", stemId:"", text:"to ensure {their} final product looks at a variety of perspectives."},
+    {id:"sg3", stemId:"", text:"to continue to persuade the audience."},
+    {id:"sg4", stemId:"", text:"to gain a more detailed understanding of curricular concepts."},
+    {id:"sg5", stemId:"", text:"to continue to help deepen {their} understanding of course content through open conversations."},
+    {id:"sg6", stemId:"", text:"to gain understanding of different viewpoints and perspectives related to world issues around them."},
+    {id:"sg7", stemId:"", text:"to demonstrate learning of content through digital assignments."},
+    {id:"sg8", stemId:"", text:"to explore the economic and political spectrum."},
+    {id:"sg9", stemId:"", text:"to practice developing clear research questions and identify relevant sources."},
+    {id:"sg10", stemId:"", text:"to continue working on articulating ideas in a persuasive manner."},
+    {id:"sg11", stemId:"", text:"to strengthen the depth and clarity of {their} persuasive writing."},
+    {id:"sg12", stemId:"", text:"to determine perspective, bias, and reliability in media such as political cartoons and news articles."}
+  ]
+};
+
+const MATH_BANK = {
+  division:"III",
+  usesUnits:false,
+  stems:[
+    {id:"ma_num",   label:"Numbers",               prep:"in developing {their} number sense and applying strategies for computation and estimation."},
+    {id:"ma_pat",   label:"Patterns and Relations", prep:"in using algebraic reasoning to represent patterns and relationships."},
+    {id:"ma_space", label:"Space and Shape",       prep:"in applying spatial reasoning and measurement to make sense of the natural world."},
+    {id:"ma_stat",  label:"Stats and Probability", prep:"in using probability and data to make predictions and answer questions."}
+  ],
+  descriptors: clone(DEFAULT_DESCRIPTORS),
+  units:[],
+  tasks:[
+    // Numbers
+    {id:"mn1", stemId:"ma_num", unitId:"", text:"completed a rational numbers unit test."},
+    {id:"mn2", stemId:"ma_num", unitId:"", text:"created a visual representation of the number sets."},
+    {id:"mn3", stemId:"ma_num", unitId:"", text:"completed a rational numbers in-class assignment with a chosen partner."},
+    {id:"mn4", stemId:"ma_num", unitId:"", text:"completed a quiz on powers and exponents."},
+    {id:"mn5", stemId:"ma_num", unitId:"", text:"completed a test on powers and exponents."},
+    // Patterns and Relations
+    {id:"mp1", stemId:"ma_pat", unitId:"", text:"completed a linear equations unit test."},
+    {id:"mp2", stemId:"ma_pat", unitId:"", text:"completed a solving linear equations in-class assignment with a chosen partner."},
+    {id:"mp3", stemId:"ma_pat", unitId:"", text:"completed a polynomials in-class assignment with a chosen partner."},
+    {id:"mp4", stemId:"ma_pat", unitId:"", text:"completed a polynomials unit test."},
+    {id:"mp5", stemId:"ma_pat", unitId:"", text:"completed a linear relations in-class assignment with a chosen partner."},
+    {id:"mp6", stemId:"ma_pat", unitId:"", text:"completed a linear relations unit test."},
+    {id:"mn6", stemId:"ma_pat", unitId:"", text:"completed an inequalities in-class assignment with a chosen partner."},
+    {id:"mn7", stemId:"ma_pat", unitId:"", text:"completed an inequalities unit test."},
+    {id:"mq1", stemId:"ma_pat", unitId:"", text:"completed an inequalities quiz."},
+    // Space and Shape
+    {id:"ms1", stemId:"ma_space", unitId:"", text:"completed a similarity and scale summative quiz."},
+    {id:"ms2", stemId:"ma_space", unitId:"", text:"completed a surface area unit test."},
+    {id:"ms3", stemId:"ma_space", unitId:"", text:"completed a surface area in-class assignment with a chosen partner."},
+    {id:"ms4", stemId:"ma_space", unitId:"", text:"completed a circle geometry unit test influenced by PAT questions."},
+    {id:"ms5", stemId:"ma_space", unitId:"", text:"completed a partner choose-your-own-adventure circle geometry unit test."},
+    {id:"ms6", stemId:"ma_space", unitId:"", text:"created a summary sheet with words, equations, and visuals for the properties learned in circle geometry."},
+    {id:"ms7", stemId:"ma_space", unitId:"", text:"completed a symmetry unit test influenced by PAT questions."},
+    {id:"ms8", stemId:"ma_space", unitId:"", text:"created a logo that visually represents both line and rotational symmetry."},
+    // Stats and Probability
+    {id:"mt1", stemId:"ma_stat", unitId:"", text:"participated in a subjective probability assignment."},
+    {id:"mt2", stemId:"ma_stat", unitId:"", text:"completed a subjective probability review about the game Farkle."},
+    {id:"mt3", stemId:"ma_stat", unitId:"", text:"completed a project based on surveying and analysis while identifying possible biases, where {they} created and interpreted graphs and reached an overall finding."},
+    {id:"mq2", stemId:"ma_stat", unitId:"", text:"completed a statistics quiz."}
+  ],
+  actions:[
+    {id:"mna", stemId:"ma_num",   text:"to engage fully in number sense topics"},
+    {id:"mpa", stemId:"ma_pat",   text:"to engage fully in patterns and relations topics"},
+    {id:"msa", stemId:"ma_space", text:"to engage fully in space and shape topics"},
+    {id:"mta", stemId:"ma_stat",  text:"to engage fully in probability and statistics topics"}
+  ],
+  nextSteps:[
+    {id:"mng", stemId:"ma_num",   text:"to increase {their} understanding of these number concepts."},
+    {id:"mpg", stemId:"ma_pat",   text:"to increase {their} understanding of these patterns and relations concepts."},
+    {id:"msg", stemId:"ma_space", text:"to increase {their} understanding of these space and shape concepts."},
+    {id:"mtg", stemId:"ma_stat",  text:"to increase {their} understanding of these statistics and probability concepts."}
+  ]
+};
+
+const CTF_BANK = {
+  division:"III",
+  usesUnits:true,
+  unitsInComment:false,
+  stems:[
+    {id:"ctf_plan", label:"Plans",    prep:"in planning, creating, appraising, and communicating in response to challenges."},
+    {id:"ctf_work", label:"Works",    prep:"in working independently and with others while exploring careers and technology."},
+    {id:"ctf_exp",  label:"Explores", prep:"in exploring interests, passions, and skills while making connections to multiple occupational areas."}
+  ],
+  descriptors: clone(DEFAULT_DESCRIPTORS),
+  units:[
+    {id:"ctf_ct89", label:"Comm Tech 8/9",        context:"Communication Technology 8/9"},
+    {id:"ctf_cs89", label:"Computer Science 8/9", context:"Computer Science 8/9"}
+  ],
+  tasks:[
+    /* ===== Comm Tech 8/9 ===== */
+    {id:"cf04", stemId:"ctf_plan", unitId:"ctf_ct89", text:"designed and modelled a piece of furniture in TinkerCAD, combining and adjusting 3D shapes to achieve accurate proportions and refining the model to improve the design."},
+    {id:"cf05", stemId:"ctf_plan", unitId:"ctf_ct89", text:"created a detailed 2D floor plan of a house in SketchUp, drawing accurate walls, rooms, and dimensions to clearly communicate the design."},
+    {id:"cf06", stemId:"ctf_plan", unitId:"ctf_ct89", text:"designed and modelled a 3D component in Fusion 360 with precise measurements, appraising and revising the design to meet a set of requirements."},
+    {id:"cf07", stemId:"ctf_work", unitId:"ctf_ct89", text:"worked independently to plan, build, and troubleshoot 3D design projects, persevering through the challenges of learning new design software."},
+
+    /* ===== Computer Science 8/9 ===== */
+    {id:"cf08", stemId:"ctf_plan", unitId:"ctf_cs89", text:"completed Micro:bit tutorials using block-based coding to build and run a series of working programs."},
+    {id:"cf09", stemId:"ctf_plan", unitId:"ctf_cs89", text:"planned, coded, tested, and debugged an original Micro:bit project to meet a goal or solve a problem."},
+    {id:"cf10", stemId:"ctf_plan", unitId:"ctf_cs89", text:"built and programmed a robot to complete a challenge, writing and testing code to control its movements and sensors and adjusting the program to improve its performance."},
+    {id:"cf11", stemId:"ctf_work", unitId:"ctf_cs89", text:"worked independently and with others to follow tutorials, troubleshoot coding errors, and persevere through programming and robotics challenges."}
+  ],
+  actions:[
+    // Plans
+    {id:"cfpa1", stemId:"ctf_plan", text:"to plan and sketch ideas before starting to build"},
+    {id:"cfpa2", stemId:"ctf_plan", text:"to appraise {their} own work against the project goals and make improvements"},
+    {id:"cfpa3", stemId:"ctf_plan", text:"to communicate {their} design choices and reasoning more clearly"},
+    // Works
+    {id:"cfwa1", stemId:"ctf_work", text:"to manage time and work steadily toward project deadlines"},
+    {id:"cfwa2", stemId:"ctf_work", text:"to troubleshoot problems independently before asking for help"},
+    {id:"cfwa3", stemId:"ctf_work", text:"to share tasks fairly and communicate well when working with others"},
+    // Explores
+    {id:"cfea1", stemId:"ctf_exp", text:"to apply advanced skills in real-world scenarios and mentor peers"},
+    {id:"cfea2", stemId:"ctf_exp", text:"to experiment with more advanced design techniques, such as adding animation or interactivity to projects"},
+    {id:"cfea3", stemId:"ctf_exp", text:"to practise more advanced design features and explore a wider variety of design elements"}
+  ],
+  nextSteps:[
+    // Plans
+    {id:"cfpg1", stemId:"ctf_plan", text:"to strengthen {their} design and planning process."},
+    {id:"cfpg2", stemId:"ctf_plan", text:"to create more complete and refined projects."},
+    {id:"cfpg3", stemId:"ctf_plan", text:"to improve how {they} review and revise {their} work."},
+    // Works
+    {id:"cfwg1", stemId:"ctf_work", text:"to build greater independence when working through challenges."},
+    {id:"cfwg2", stemId:"ctf_work", text:"to strengthen {their} collaboration and teamwork skills."},
+    {id:"cfwg3", stemId:"ctf_work", text:"to develop confidence using new tools and technology."},
+    // Explores
+    {id:"cfeg1", stemId:"ctf_exp", text:"to demonstrate leadership and innovation in technology projects."},
+    {id:"cfeg2", stemId:"ctf_exp", text:"to create more dynamic and engaging digital solutions."},
+    {id:"cfeg3", stemId:"ctf_exp", text:"to organize and present information more effectively."}
+  ]
+};
+
+const COMMTECH6_BANK = {
+  division:"II",
+  usesUnits:false,
+  unitsInComment:false,
+  stems:[
+    {id:"ctf_plan", label:"Plans",    prep:"in planning, creating, appraising, and communicating in response to challenges."},
+    {id:"ctf_exp",  label:"Explores", prep:"in exploring passions, skills, and technologies connected to multiple career pathways."}
+  ],
+  descriptors: clone(DEFAULT_DESCRIPTORS),
+  units:[],
+  tasks:[
+    // Plans
+    {id:"cf01", stemId:"ctf_plan", unitId:"", text:"designed a polished visual in Canva to communicate a message to a specific audience, choosing appropriate images, colours, and text and refining the design based on feedback."},
+    {id:"cf02", stemId:"ctf_plan", unitId:"", text:"built a spreadsheet in Google Sheets to organize and present information, using formulas and formatting to complete tutorial projects."},
+    {id:"cf12", stemId:"ctf_plan", unitId:"", text:"created an advertising poster in Canva, using creative visuals and clear, persuasive messaging to communicate ideas to a specific audience."},
+    // Explores
+    {id:"cf13", stemId:"ctf_exp", unitId:"", text:"engaged in class discussions about AI in daily life, sharing examples of how AI impacts careers and everyday tasks."},
+    {id:"cf03", stemId:"ctf_exp", unitId:"", text:"explored and built new digital skills through typing practice and tutorial-based projects, applying proper keyboarding technique and following step-by-step instructions."}
+  ],
+  assignments:[],
+  assignmentConnector:"This was observed in {a}",
+  actions:[
+    // Plans
+    {id:"cfpa1", stemId:"ctf_plan", text:"to plan and sketch ideas before starting to build"},
+    {id:"cfpa2", stemId:"ctf_plan", text:"to appraise {their} own work against the project goals and make improvements"},
+    {id:"cfpa3", stemId:"ctf_plan", text:"to communicate {their} design choices and reasoning more clearly"},
+    // Explores
+    {id:"cfea1", stemId:"ctf_exp", text:"to apply advanced skills in real-world scenarios and mentor peers"},
+    {id:"cfea2", stemId:"ctf_exp", text:"to experiment with more advanced design techniques, such as adding animation or interactivity to projects"},
+    {id:"cfea3", stemId:"ctf_exp", text:"to practise more advanced design features and explore a wider variety of design elements"}
+  ],
+  nextSteps:[
+    // Plans
+    {id:"cfpg1", stemId:"ctf_plan", text:"to strengthen {their} design and planning process."},
+    {id:"cfpg2", stemId:"ctf_plan", text:"to create more complete and refined projects."},
+    {id:"cfpg3", stemId:"ctf_plan", text:"to improve how {they} review and revise {their} work."},
+    // Explores
+    {id:"cfeg1", stemId:"ctf_exp", text:"to demonstrate leadership and innovation in technology projects."},
+    {id:"cfeg2", stemId:"ctf_exp", text:"to create more dynamic and engaging digital solutions."},
+    {id:"cfeg3", stemId:"ctf_exp", text:"to organize and present information more effectively."}
+  ]
+};
+
+const ELA6_BANK = {
+  division:"II",
+  usesUnits:false,
+  unitsInComment:false,
+  headNoun:"understanding",
+  leveledEvidence:true,
+  stems:[
+    {id:"e6_read",  label:"Reading",       prep:"in reading to explore and understand."},
+    {id:"e6_write", label:"Writing",       prep:"in writing to express information and ideas."},
+    {id:"e6_oral",  label:"Oral language", prep:"in making meaning and connections through oral language."},
+    {id:"e6_rep",   label:"Representing",  prep:"in representing ideas through a variety of media."}
+  ],
+  descriptors: clone(GRADE6_DESCRIPTORS),
+  units:[],
+  assignmentConnector:"This was demonstrated through {a}",
+  assignments:[
+    {id:"e6a01", text:"Book Club responses"},
+    {id:"e6a02", text:"Narrative Story Writing"},
+    {id:"e6a03", text:"the Ancient Athens written response"},
+    {id:"e6a04", text:"Book Club / Novel Study"},
+    {id:"e6a05", text:"Reading Comprehension Tasks"},
+    {id:"e6a06", text:"classroom discussions"},
+    {id:"e6a07", text:"Debates"},
+    {id:"e6a08", text:"the Trial for Ancient Athens"},
+    {id:"e6a09", text:"the Book Club final project"},
+    {id:"e6a10", text:"the Black History Month presentation"},
+    {id:"e6a11", text:"the Figurative Language Song Analysis assignment"}
+  ],
+  tasks:[
+    // Reading
+    {id:"e6t_r1", stemId:"e6_read", unitId:"", text:"used a variety of reading strategies such as visualization, context clues, inferring, and drawing conclusions to comprehend the text.", byLevel:{
+      "4":"successfully used a variety of reading strategies such as visualization, context clues, inferring, and drawing conclusions to comprehend the text.",
+      "3":"used a variety of reading strategies such as visualization, context clues, inferring, and drawing conclusions to comprehend the text.",
+      "2":"sufficiently used reading strategies such as context clues and drawing conclusions to comprehend the text.",
+      "1":"attempted to use reading strategies such as context clues and drawing conclusions to comprehend the text."}},
+    {id:"e6t_r2", stemId:"e6_read", unitId:"", text:"read text fluently with expression, identifying main ideas, making inferences, and supporting opinions with evidence from the text.", byLevel:{
+      "4":"read text fluently with expression, identifying main ideas, making strong inferences, and supporting opinions with detailed evidence from the text.",
+      "3":"read text fluently with expression, identifying main ideas, making inferences, and supporting opinions with evidence from the text.",
+      "2":"read text with some expression, identified main ideas, and supported opinions with some evidence from the text.",
+      "1":"read the text aloud and, with guidance, identified main ideas and provided some basic details from the text."}},
+    // Writing
+    {id:"e6t_w1", stemId:"e6_write", unitId:"", text:"included a beginning, middle, and end with some transitional words, expressive verbs, and vivid adjectives.", byLevel:{
+      "4":"successfully included a beginning, middle, and end with some transitional words, expressive verbs, and vivid adjectives.",
+      "3":"included a beginning, middle, and end with some transitional words, vivid verbs, and adjectives.",
+      "2":"included a beginning, middle, and end with some transitional words, verbs, and adjectives.",
+      "1":"attempted to include a beginning, middle, and end with some attempt to use transitional words, verbs, and adjectives."}},
+    {id:"e6t_w2", stemId:"e6_write", unitId:"", text:"wrote clear responses that included supporting details and evidence from the novel.", byLevel:{
+      "4":"wrote complex responses that included supporting details and strong evidence from the novel.",
+      "3":"wrote clear responses that included supporting details and evidence from the novel.",
+      "2":"wrote sufficient responses that included some supporting details and evidence from the novel.",
+      "1":"began, with support, to write responses that included some preliminary details from the novel."}},
+    // Oral language
+    {id:"e6t_o1", stemId:"e6_oral", unitId:"", text:"presented ideas while speaking at an appropriate pace, maintaining eye contact, and adjusting tone and volume.", byLevel:{
+      "4":"confidently presented ideas while speaking at an appropriate pace, maintaining eye contact, and adjusting tone and volume.",
+      "3":"presented ideas while speaking at an appropriate pace, maintaining eye contact, and adjusting tone and volume.",
+      "2":"presented ideas while taking part in discussion, attempting to maintain eye contact, and working to adjust tone and volume.",
+      "1":"used speaking stems to present ideas, attempted to maintain eye contact, and worked to adjust tone and volume."}},
+    // Representing
+    {id:"e6t_p1", stemId:"e6_rep", unitId:"", text:"selected images and information to support a clear message and understanding.", byLevel:{
+      "4":"confidently selected images and information to support a clear message and understanding.",
+      "3":"selected images and information to support a clear message and understanding.",
+      "2":"sufficiently selected images and information to support a message and understanding.",
+      "1":"needed support and guidance to select images and information that supported a message and understanding."}}
+  ],
+  actions:[
+    {id:"e6ga_r", stemId:"e6_read",  text:"to continue practising drawing conclusions by connecting text evidence to personal experiences or other texts"},
+    {id:"e6ga_w", stemId:"e6_write", text:"to continue adding stronger transitions and elaborating on key ideas"},
+    {id:"e6ga_o", stemId:"e6_oral",  text:"to continue building fluency and confidence by rehearsing speaking tasks aloud before presenting."},
+    {id:"e6ga_p", stemId:"e6_rep",   text:"to use images, layout, and information more intentionally"}
+  ],
+  nextSteps:[
+    {id:"e6gn_r", stemId:"e6_read",  text:"to strengthen overall comprehension."},
+    {id:"e6gn_w", stemId:"e6_write", text:"to strengthen coherence and flow."},
+    {id:"e6gn_p", stemId:"e6_rep",   text:"to enhance the clarity and impact of visual communication."}
+  ]
+};
+
+const SST6_BANK = {
+  division:"II",
+  usesUnits:false,
+  unitsInComment:false,
+  headNoun:"understanding",
+  leveledEvidence:true,
+  stems:[
+    {id:"s6_know", label:"Knowledge & understanding", prep:"in demonstrating knowledge and understanding of topics and concepts."},
+    {id:"s6_inq",  label:"Inquiry skills",            prep:"in developing skills and processes for social studies inquiry."}
+  ],
+  descriptors: clone(GRADE6_DESCRIPTORS),
+  units:[],
+  assignmentConnector:"This was demonstrated through {a}",
+  assignments:[
+    {id:"s6a01", text:"unit tests"},
+    {id:"s6a02", text:"class participation"},
+    {id:"s6a03", text:"comprehension questions"},
+    {id:"s6a04", text:"the Ancient Rome Research Gallery"},
+    {id:"s6a05", text:"the Ancient Athens Research Gallery"},
+    {id:"s6a06", text:"the Haudenosaunee Research Gallery"},
+    {id:"s6a07", text:"the Famous Black Canadian assignment"},
+    {id:"s6a08", text:"the Comparing Canada\u2019s Government assignment"}
+  ],
+  tasks:[
+    // Knowledge & understanding
+    {id:"s6t_k1", stemId:"s6_know", unitId:"", text:"showed evidence of understanding historical models and their influence on modern democracy.", byLevel:{
+      "4":"expertly showed evidence of understanding historical models and their influence on modern democracy.",
+      "3":"competently showed evidence of understanding historical models and their influence on modern democracy.",
+      "2":"showed a growing understanding of historical models and their influence on modern democracy.",
+      "1":"showed an initial understanding of historical models and their influence on modern democracy."}},
+    // Inquiry skills
+    {id:"s6t_i1", stemId:"s6_inq", unitId:"", text:"investigated articles and identified key concepts.", byLevel:{
+      "4":"expertly investigated articles and identified key concepts.",
+      "3":"effectively investigated articles and identified key concepts.",
+      "2":"adequately investigated articles and identified some key concepts.",
+      "1":"began, with support, to investigate articles and identify key concepts."}},
+    {id:"s6t_i2", stemId:"s6_inq", unitId:"", text:"researched an influential Canadian changemaker.", byLevel:{
+      "4":"thoroughly researched an influential Canadian changemaker, drawing on multiple sources.",
+      "3":"effectively researched an influential Canadian changemaker.",
+      "2":"adequately researched an influential Canadian changemaker.",
+      "1":"began, with support, to research an influential Canadian changemaker."}},
+    {id:"s6t_i3", stemId:"s6_inq", unitId:"", text:"researched and compared key features of the federal governments of Canada and a chosen country.", byLevel:{
+      "4":"expertly researched and compared key features of the federal governments of Canada and a chosen country.",
+      "3":"effectively researched and compared key features of the federal governments of Canada and a chosen country.",
+      "2":"adequately researched and compared key features of the federal governments of Canada and a chosen country.",
+      "1":"began, with support, to research and compare key features of the federal governments of Canada and a chosen country."}}
+  ],
+  actions:[
+    {id:"s6ga_k", stemId:"s6_know", text:"to continue developing more effective ways to prepare for tests and to draw more relevant, complete information from texts and lessons."},
+    {id:"s6ga_i", stemId:"s6_inq",  text:"to continue seeking out multiple viewpoints and sources"}
+  ],
+  nextSteps:[
+    {id:"s6gn_i", stemId:"s6_inq", text:"to refine understanding of topics and issues."}
+  ]
+};
+
+const MUSIC79_BANK = {
+  division:"III",
+  usesUnits:false,
+  unitsInComment:true,
+  headNoun:"proficiency",
+  leveledEvidence:false,
+  strengthDefaults:[],
+  growthDefaults:[],
+  assignmentConnector:"This was observed in {a}",
+  assignments:[],
+  stems:[
+    {id:"mu_perf", label:"Performing techniques", prep:"in performing musical techniques alone and in groups."},
+    {id:"mu_resp", label:"Responding to music",   prep:"in analyzing, evaluating, and responding critically to a variety of musical genres."},
+    {id:"mu_elem", label:"Elements of music",     prep:"in identifying and applying the elements of music."}
+  ],
+  descriptors: clone(DEFAULT_DESCRIPTORS),
+  units:[],
+  tasks:[
+    {id:"mu_t_p1", stemId:"mu_perf", unitId:"", text:"performed music with accurate rhythm, pitch, and timing, both individually and as part of an ensemble."},
+    {id:"mu_t_p2", stemId:"mu_perf", unitId:"", text:"applied appropriate technique and expression while performing alone and with others."},
+    {id:"mu_t_r1", stemId:"mu_resp", unitId:"", text:"listened to a range of musical genres and described the characteristics of each using appropriate musical vocabulary."},
+    {id:"mu_t_r2", stemId:"mu_resp", unitId:"", text:"offered thoughtful, constructive feedback on musical performances and works."},
+    {id:"mu_t_e1", stemId:"mu_elem", unitId:"", text:"identified and described the elements of music, such as rhythm, melody, dynamics, and form, in a variety of works."},
+    {id:"mu_t_e2", stemId:"mu_elem", unitId:"", text:"used the elements of music effectively when creating and interpreting musical ideas."}
+  ],
+  actions:[
+    {id:"mu_a_p",   stemId:"mu_perf", text:"to set aside regular practice time"},
+    {id:"mu_a_r",   stemId:"mu_resp", text:"to listen actively to a wider range of musical styles"},
+    {id:"mu_a_e",   stemId:"mu_elem", text:"to review and apply the elements of music more consistently"},
+    {id:"mu_a_gen", stemId:"",        text:"to take on more challenging repertoire and musical tasks"}
+  ],
+  nextSteps:[
+    {id:"mu_n_p",   stemId:"mu_perf", text:"to build accuracy, control, and confidence when performing."},
+    {id:"mu_n_r",   stemId:"mu_resp", text:"to deepen critical responses and use of musical vocabulary."},
+    {id:"mu_n_e",   stemId:"mu_elem", text:"to strengthen understanding when creating and analyzing music."},
+    {id:"mu_n_gen", stemId:"",        text:"to continue growing as a confident, well-rounded musician."}
+  ]
+};
+
+const DEFAULTS = {
+  version: 3,
+  meta:{ bullet:"• ", activeSubject:"Science 9" },
+  otherComments: clone(DEFAULT_OTHER_COMMENTS),
+  banks:{ "Science 9": SCIENCE_BANK, "English 9": ENGLISH_BANK, "Social 9": SOCIAL_BANK, "Math 9": MATH_BANK, "CTF 8/9": CTF_BANK, "English 6": ELA6_BANK, "Social 6": SST6_BANK, "CTF 6": COMMTECH6_BANK, "Music 7-9": MUSIC79_BANK },
+  students:[]
+};
+/* The pristine built-in version of each shipped bank, keyed by its default name.
+   "Reset bank" restores whichever of these matches the active subject; banks the
+   teacher created themselves are absent here (nothing built-in to restore to). */
+const ORIGINAL_BANKS = {
+  "Science 9": SCIENCE_BANK, "English 9": ENGLISH_BANK, "Social 9": SOCIAL_BANK,
+  "Math 9": MATH_BANK, "CTF 8/9": CTF_BANK, "English 6": ELA6_BANK,
+  "Social 6": SST6_BANK, "CTF 6": COMMTECH6_BANK, "Music 7-9": MUSIC79_BANK
+};
+// Ensure every seeded bank carries the optional fields, so exports stay uniform.
+Object.values(DEFAULTS.banks).forEach(bk=>{
+  if(typeof bk.usesUnits!=="boolean") bk.usesUnits = !!(bk.units && bk.units.length);
+  if(typeof bk.unitsInComment!=="boolean") bk.unitsInComment = true;
+  if(!Array.isArray(bk.assignments)) bk.assignments = [];
+  if(typeof bk.assignmentConnector!=="string") bk.assignmentConnector = "This was observed in {a}";
+  if(typeof bk.headNoun!=="string") bk.headNoun = "proficiency";
+  if(typeof bk.leveledEvidence!=="boolean") bk.leveledEvidence = false;
+  if(!Array.isArray(bk.strengthDefaults)) bk.strengthDefaults = [];
+  if(!Array.isArray(bk.growthDefaults)) bk.growthDefaults = [];
+});
+
+/* ============================================================ ENGINE ============================================================ */
+let state = clone(DEFAULTS);
+let dirty = false;
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function uid(p){ return p+"_"+Math.random().toString(36).slice(2,8); }
+function byId(arr,id){ return arr.find(x=>x.id===id); }
+function properName(s){ s=(s||"").trim(); return s ? s.charAt(0).toUpperCase()+s.slice(1) : ""; }
+function setDirty(){ dirty=true; document.getElementById("dirtyFlag").classList.add("show"); }
+
+// Active subject bank
+function B(){ return state.banks[state.meta.activeSubject]; }
+// A student's work for the active subject (created on demand)
+function W(stu){
+  if(!stu.work) stu.work={};
+  const s = state.meta.activeSubject;
+  if(!stu.work[s]) stu.work[s] = {strengths:[], growths:[], others:[], note:""};
+  return stu.work[s];
+}
+function subjectNames(){ return Object.keys(state.banks); }
+function newBankTemplate(){
+  return {
+    division:"",
+    usesUnits:false,
+    unitsInComment:true,
+    headNoun:"proficiency",
+    leveledEvidence:false,
+    strengthDefaults:[],
+    growthDefaults:[],
+    assignmentConnector:"This was observed in {a}",
+    assignments:[],
+    stems:[{id:uid("st"), label:"New stem", prep:"in this area of learning."}],
+    descriptors: clone(DEFAULT_DESCRIPTORS),
+    units:[], tasks:[], actions:[], nextSteps:[]
+  };
+}
+
+function pronounMap(stu){
+  const name = properName(stu.first) || "The student";
+  switch(stu.pronoun){
+    case "he":   return {name, sub:"he",  their:"his",  poss:"his",  they:"he",  them:"him",  theyre:"he is",  is:"is",  has:"has"};
+    case "she":  return {name, sub:"she", their:"her",  poss:"her",  they:"she", them:"her",  theyre:"she is", is:"is",  has:"has"};
+    case "they": return {name, sub:name, their:"their",poss:"their",they:"they",them:"them", theyre:"they are",is:"are", has:"have"};
+    default:     return {name, sub:name, their:name+"\u2019s", poss:"the", they:name, them:name, theyre:name+" is", is:"is", has:"has"};
+  }
+}
+function subst(str, stu){
+  if(!str) return "";
+  const m = pronounMap(stu);
+  return str.replace(/\{(name|sub|their|poss|they|them|theyre|is|has)\}/g, (_,k)=> m[k] ?? ("{"+k+"}"));
+}
+function tidy(s){
+  return s.replace(/\s+([.,;:])/g,"$1").replace(/\s{2,}/g," ").replace(/\.\./g,".").trim();
+}
+
+/* "a" vs "an" for the word that follows (simple leading-vowel rule — fine for
+   every descriptor in our banks; no "hour"/"university" style exceptions here). */
+function articleFor(word){ return /^[aeiou]/i.test((word||"").trim()) ? "an" : "a"; }
+/* Opening fragment for a strength/growth line. Banks can choose the head noun:
+   "proficiency"  → "{name} demonstrates excellent proficiency"
+   "understanding"→ "{name} demonstrates an excellent understanding"   */
+function openingPhrase(desc){
+  if((B().headNoun||"proficiency")==="understanding"){
+    return desc ? "{name} demonstrates "+articleFor(desc)+" "+desc+" understanding"
+                : "{name} demonstrates an understanding";
+  }
+  return "{name} demonstrates "+(desc?desc+" ":"")+"proficiency";
+}
+/* The success-criteria wording. When a bank uses level-specific evidence and the
+   task carries a version for this level, use it; otherwise fall back to task.text. */
+function pickTaskText(task, level){
+  if(B().leveledEvidence && task && task.byLevel && task.byLevel[level] && String(task.byLevel[level]).trim())
+    return String(task.byLevel[level]);
+  return task ? task.text : "";
+}
+/* Seed a four-level set from a single base phrase (used when turning level-specific
+   evidence on, or adding a new task in a leveled bank). */
+function seedByLevel(text){ const v=text||""; return {"4":v,"3":v,"2":v,"1":v}; }
+
+function buildStrength(stu, s, asPlain){
+  const stem = byId(B().stems, s.stemId);
+  let line = openingPhrase(s.desc) + (stem ? " "+stem.prep : ".");
+  const task = byId(B().tasks, s.taskId);
+  if(task){
+    const txt = pickTaskText(task, s.level);
+    const assignment = s.assignmentId ? byId(B().assignments||[], s.assignmentId) : null;
+    const unit = byId(B().units, task.unitId);
+    const showUnit = unit && B().unitsInComment !== false;
+    if(assignment){
+      const conn = (B().assignmentConnector || "This was observed in {a}").replace("{a}", assignment.text.trim());
+      line += " " + conn + ", where {sub} " + txt;
+    } else if(showUnit){
+      line += " This was observed during "+unit.context+" when {sub} "+txt;
+    } else {
+      line += " This was observed when {sub} "+txt;
+    }
+  }
+  return tidy(subst(line, stu));
+}
+function buildGrowth(stu, g){
+  const stem = byId(B().stems, g.stemId);
+  let line = openingPhrase(g.desc) + (stem ? " "+stem.prep : ".");
+  const action = byId(B().actions, g.actionId);
+  const step   = byId(B().nextSteps, g.stepId);
+  if(action || step){
+    line += " As a next step, {sub} is encouraged "+(action?action.text:"")+(step?" "+step.text:"");
+  }
+  return tidy(subst(line, stu));
+}
+function studentHasContent(stu){
+  const w = stu.work && stu.work[state.meta.activeSubject];
+  if(!w) return false;
+  return (w.strengths&&w.strengths.length) || (w.growths&&w.growths.length) || (w.others&&w.others.length) || (w.note&&w.note.trim());
+}
+
+function joinAnd(arr){
+  arr = arr.filter(Boolean);
+  if(arr.length===0) return "";
+  if(arr.length===1) return arr[0];
+  if(arr.length===2) return arr[0]+" and "+arr[1];
+  return arr.slice(0,-1).join(", ")+" and "+arr[arr.length-1];
+}
+// {singular|plural} → resolves to the left word for exactly one stem, otherwise the right word
+function pluralPipe(text, n){
+  return text.replace(/\{([^{}|]*)\|([^{}|]*)\}/g, (_,a,b)=> n===1 ? a : b);
+}
+function otherTemplateText(o){
+  if(o.templateId === "__custom__") return o.custom || "";
+  const tpl = byId(state.otherComments, o.templateId);
+  return tpl ? tpl.text : "";
+}
+function otherUsesStems(o){
+  if(o.templateId === "__custom__") return /\{stems\}/.test(o.custom||"");
+  const tpl = byId(state.otherComments, o.templateId);
+  return !!(tpl && tpl.usesStems);
+}
+function buildOther(stu, o){
+  let text = otherTemplateText(o);
+  if(!text) return "";
+  const labels = (o.stems||[]).map(id=>byId(B().stems,id)?.label).filter(Boolean);
+  const n = labels.length;
+  const stemsStr = joinAnd(labels) || "these";
+  text = text.replace(/\{stems\}/g, stemsStr);
+  text = pluralPipe(text, n);
+  return tidy(subst(text, stu));
+}
+
+function buildComment(stu){
+  const b = state.meta.bullet || "";
+  const out = [];
+  const blank = ()=>{ if(out.length) out.push({h:false, t:""}); };
+
+  if(W(stu).strengths && W(stu).strengths.length){
+    out.push({h:true, t:(W(stu).strengths.length>1?"Areas":"Area")+" of Strength:"});
+    W(stu).strengths.forEach(s=> out.push({h:false, t:b+buildStrength(stu,s)}));
+  }
+  if(W(stu).growths && W(stu).growths.length){
+    blank();
+    out.push({h:true, t:(W(stu).growths.length>1?"Areas":"Area")+" for Growth:"});
+    W(stu).growths.forEach(g=> out.push({h:false, t:b+buildGrowth(stu,g)}));
+  }
+  if(W(stu).others && W(stu).others.length){
+    W(stu).others.forEach(o=>{ blank(); out.push({h:false, t:buildOther(stu,o)}); });
+  }
+  if(W(stu).note && W(stu).note.trim()){
+    blank();
+    out.push({h:false, t:tidy(subst(W(stu).note,stu))});
+  }
+  return out;
+}
+function commentToText(stu){ return buildComment(stu).map(l=>l.t).join("\n"); }
+
+/* ============================================================ STATE OPS ============================================================ */
+function active(){ return byId(state.students, state.activeId); }
+function addStudent(first,last,pron){
+  const stu = {id:uid("stu"), first:first.trim(), last:(last||"").trim(), pronoun:pron, work:{}};
+  state.students.push(stu); state.activeId = stu.id; setDirty();
+}
+// pick the first stem (in list order) not already used in the given rows
+function nextUnusedStem(usedIds){
+  const found = B().stems.find(s=>!usedIds.includes(s.id));
+  return found ? found.id : (B().stems[0] ? B().stems[0].id : "");
+}
+function newOther(){
+  const stu=active(); if(!stu) return;
+  const tpl=state.otherComments[0];
+  W(stu).others.push({id:uid("o"), templateId:tpl.id, stems: tpl.usesStems ? [B().stems[0].id] : [], custom:""});
+  setDirty();
+}
+function newStrength(){
+  const stu=active(); if(!stu) return;
+  const def = (B().strengthDefaults||[])[W(stu).strengths.length];   // #1 for the 1st added, #2 for the 2nd, #3 for the 3rd
+  let row;
+  if(def && byId(B().stems, def.stemId)){
+    const stemId=def.stemId;
+    const task=def.taskId && byId(B().tasks, def.taskId);
+    const taskId=(task && task.stemId===stemId) ? def.taskId : "";
+    const asg=def.assignmentId && byId(B().assignments||[], def.assignmentId);
+    row={id:uid("s"), stemId, level:"3", desc:B().descriptors["3"][0], taskId, assignmentId:asg?def.assignmentId:""};
+  } else {
+    const stemId=nextUnusedStem(W(stu).strengths.map(s=>s.stemId));
+    row={id:uid("s"), stemId, level:"3", desc:B().descriptors["3"][0], taskId:""};
+  }
+  W(stu).strengths.push(row);
+  setDirty();
+}
+function newGrowth(){
+  const stu=active(); if(!stu) return;
+  const def = (B().growthDefaults||[])[W(stu).growths.length];   // #1 for the 1st added, #2 for the 2nd, #3 for the 3rd
+  let row;
+  if(def && byId(B().stems, def.stemId)){
+    const stemId=def.stemId;
+    const act=def.actionId && byId(B().actions, def.actionId);
+    const actionId=(act && (!act.stemId||act.stemId===stemId)) ? def.actionId : "";
+    const stp=def.stepId && byId(B().nextSteps, def.stepId);
+    const stepId=(stp && (!stp.stemId||stp.stemId===stemId)) ? def.stepId : "";
+    row={id:uid("g"), stemId, level:"2", desc:B().descriptors["2"][0], actionId, stepId};
+  } else {
+    const stem = nextUnusedStem(W(stu).growths.map(g=>g.stemId));
+    const act=B().actions.find(a=>a.stemId===stem) || B().actions.find(a=>!a.stemId);
+    const stp=B().nextSteps.find(n=>n.stemId===stem) || B().nextSteps.find(n=>!n.stemId);
+    row={id:uid("g"), stemId:stem, level:"2", desc:B().descriptors["2"][0], actionId:act?act.id:"", stepId:stp?stp.id:""};
+  }
+  W(stu).growths.push(row);
+  setDirty();
+}
+
+/* ============================================================ SUBJECTS ============================================================ */
+function renderSubjectPicker(){
+  const sel=document.getElementById("subjectSel");
+  if(!sel) return;
+  sel.innerHTML = subjectNames().map(n=>'<option value="'+esc(n)+'"'+(n===state.meta.activeSubject?" selected":"")+'>'+esc(n)+'</option>').join("");
+}
+function switchSubject(name){
+  if(!state.banks[name]) return;
+  state.meta.activeSubject = name;
+  render(); renderBank();
+}
+function newSubject(){
+  let name = (prompt("Name this comment bank (e.g. Math, English):","")||"").trim();
+  if(!name) return;
+  if(state.banks[name]){ alert("A bank named \""+name+"\" already exists."); return; }
+  state.banks[name] = newBankTemplate();
+  state.meta.activeSubject = name;
+  setDirty(); render(); renderBank();
+  // jump to the bank tab so they can build it
+  document.querySelector('.tab[data-tab="bank"]').click();
+}
+function renameSubject(oldName, newName){
+  newName=(newName||"").trim();
+  if(!newName || newName===oldName) return;
+  if(state.banks[newName]){ alert("A bank named \""+newName+"\" already exists."); renderBank(); return; }
+  state.banks[newName]=state.banks[oldName]; delete state.banks[oldName];
+  state.students.forEach(s=>{ if(s.work && s.work[oldName]){ s.work[newName]=s.work[oldName]; delete s.work[oldName]; } });
+  if(state.meta.activeSubject===oldName) state.meta.activeSubject=newName;
+  setDirty(); render(); renderBank();
+}
+function removeSubject(name){
+  if(subjectNames().length<=1){ alert("You need at least one comment bank."); return; }
+  if(!confirm("Delete the \""+name+"\" comment bank and every comment written in it? This cannot be undone (unless you re-import a saved file).")) return;
+  delete state.banks[name];
+  state.students.forEach(s=>{ if(s.work) delete s.work[name]; });
+  state.meta.activeSubject = subjectNames()[0];
+  setDirty(); render(); renderBank();
+}
+
+/* ============================================================ RENDER: WRITE ============================================================ */
+function render(){ renderSubjectPicker(); updateResetBtn(); renderRoster(); renderBuilder(); }
+
+function updateResetBtn(){
+  const b=document.getElementById("resetBtn"); if(!b) return;
+  const name=state.meta.activeSubject; const has=!!ORIGINAL_BANKS[name];
+  b.disabled=!has;
+  b.style.opacity=has?"":"0.4";
+  b.style.cursor=has?"":"not-allowed";
+  b.title=has ? ("Restore the built-in \u201c"+name+"\u201d bank (your class lists are kept)")
+              : ("\u201c"+name+"\u201d is a custom bank \u2014 nothing built-in to restore");
+}
+
+/* Which pieces of an active-subject comment are started-but-unfinished. Mirrors
+   the per-row ✓/⚠ markers, so the roster summary agrees with what's on screen. */
+function studentLineIssues(stu){
+  const w = stu.work && stu.work[state.meta.activeSubject];
+  if(!w) return [];
+  const out=[];
+  (w.strengths||[]).forEach(s=>{ if(!s.taskId) out.push("a strength with no evidence"); });
+  (w.growths||[]).forEach(g=>{ if(!g.actionId && !g.stepId) out.push("a growth with no next step"); });
+  (w.others||[]).forEach(o=>{
+    if(o.templateId==="__custom__"){ if(!(o.custom||"").trim()) out.push("an empty custom comment"); }
+    else { const tpl=byId(state.otherComments,o.templateId); if(tpl && tpl.usesStems && (!o.stems||!o.stems.length)) out.push("an indicator missing its stem"); }
+  });
+  return out;
+}
+
+function renderRoster(){
+  const list = document.getElementById("studentList");
+  list.innerHTML = "";
+  const filterEl = document.getElementById("rosterFilter");
+  const q = (filterEl && filterEl.value || "").trim().toLowerCase();
+  if(!state.students.length){
+    list.innerHTML = '<div class="empty-note">No students yet. Add a few names above to begin, paste a whole class with <b>Paste list</b>, or Import a data file you saved earlier.</div>';
+  }
+  let shown=0;
+  state.students.forEach(stu=>{
+    const fullName = (properName(stu.first)+" "+stu.last).trim() || "(unnamed)";
+    if(q && !fullName.toLowerCase().includes(q)) return;
+    shown++;
+    const issues = studentHasContent(stu) ? studentLineIssues(stu) : [];
+    const row = document.createElement("div");
+    row.className = "student"+(stu.id===state.activeId?" active":"");
+    row.dataset.id = stu.id;
+    row.innerHTML =
+      '<span class="st-mark'+(studentHasContent(stu)?" done":"")+(issues.length?" attn":"")+'" title="'+(issues.length?"Needs attention":(studentHasContent(stu)?"Started":"Not started"))+'"></span>'+
+      '<span class="nm"></span>'+
+      '<button class="btn danger sm x" title="Remove">✕</button>';
+    row.querySelector(".nm").textContent = fullName;
+    row.addEventListener("click", e=>{ if(e.target.closest(".x")) return; state.activeId=stu.id; render(); });
+    row.querySelector(".x").addEventListener("click", e=>{
+      e.stopPropagation();
+      if(confirm("Remove "+(properName(stu.first)||"this student")+"?")){
+        state.students = state.students.filter(s=>s.id!==stu.id);
+        if(state.activeId===stu.id) state.activeId = state.students[0]?.id || null;
+        setDirty(); render();
+      }
+    });
+    list.appendChild(row);
+  });
+  if(state.students.length && q && shown===0){
+    list.innerHTML = '<div class="empty-note">No students match \u201c'+esc(q)+'\u201d.</div>';
+  }
+  const n=state.students.length, done=state.students.filter(studentHasContent).length;
+  let countTxt = n ? (done+" of "+n+" started") : "";
+  if(q && n) countTxt = "showing "+shown+" of "+n+" \u00b7 "+countTxt;
+  document.getElementById("rosterCount").textContent = countTxt;
+  renderRosterIssues();
+}
+
+function renderRosterIssues(){
+  const box=document.getElementById("rosterIssues"); if(!box) return;
+  const flagged = state.students.filter(s=>studentHasContent(s) && studentLineIssues(s).length);
+  if(!flagged.length){ box.innerHTML=""; return; }
+  box.className="roster-issues";
+  const head=document.createElement("div"); head.className="ri-head";
+  head.textContent="Needs attention ("+flagged.length+")";
+  box.innerHTML=""; box.appendChild(head);
+  flagged.forEach(stu=>{
+    const chip=document.createElement("span"); chip.className="ri-name";
+    chip.textContent=(properName(stu.first)+" "+stu.last).trim()||"(unnamed)";
+    chip.title=studentLineIssues(stu).join(" \u00b7 ");
+    chip.addEventListener("click", ()=>{ state.activeId=stu.id; render(); });
+    box.appendChild(chip);
+  });
+}
+
+function optionList(arr, selId, labelFn){
+  return arr.map(o=>'<option value="'+o.id+'"'+(o.id===selId?" selected":"")+'>'+esc(labelFn(o))+'</option>').join("");
+}
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function renderBuilder(){
+  const root = document.getElementById("builder");
+  const stu = active();
+  if(!stu){
+    root.innerHTML = '<div class="nostu"><div class="big">Pick a student to begin</div><div>Add names in the class list on the left, then select one to start writing.</div></div>';
+    return;
+  }
+  root.innerHTML = "";
+
+  // header
+  const head = document.createElement("div");
+  head.className = "stu-head";
+  head.innerHTML =
+    '<span class="who">'+esc((properName(stu.first)+" "+stu.last).trim()||"(unnamed)")+'</span>'+
+    '<select class="pron-select" id="pronEdit">'+
+      '<option value="name"'+(stu.pronoun==="name"?" selected":"")+'>name only</option>'+
+      '<option value="she"'+(stu.pronoun==="she"?" selected":"")+'>she / her</option>'+
+      '<option value="he"'+(stu.pronoun==="he"?" selected":"")+'>he / him</option>'+
+      '<option value="they"'+(stu.pronoun==="they"?" selected":"")+'>they / them</option>'+
+    '</select>'+
+    '<span class="meta">'+esc(state.meta.activeSubject)+(B().division?' · Div '+esc(B().division):'')+'</span>';
+  root.appendChild(head);
+  head.querySelector("#pronEdit").addEventListener("change", e=>{ stu.pronoun=e.target.value; setDirty(); render(); });
+
+  // strengths
+  root.appendChild(buildSection("strength", stu));
+  // growth
+  root.appendChild(buildSection("growth", stu));
+  // other comments (NATR / EAL / NER)
+  root.appendChild(buildOtherSection(stu));
+
+  // note
+  const noteSec = document.createElement("div");
+  noteSec.className = "section";
+  noteSec.innerHTML =
+    '<div class="sec-head"><span class="tag" style="color:var(--ink-soft)">Additional note</span>'+
+    '<span class="hint">optional — appended to the end (e.g. an individual-plan goal or a holistic remark)</span></div>'+
+    '<div class="note-box"><div class="lbl"><span>You can use {name} and {their} here.</span></div>'+
+    '<textarea id="noteBox" placeholder="Anything custom for this student…"></textarea></div>';
+  root.appendChild(noteSec);
+  const nb = noteSec.querySelector("#noteBox");
+  nb.value = W(stu).note || "";
+  nb.addEventListener("input", e=>{ W(stu).note=e.target.value; dirty=true; document.getElementById("dirtyFlag").classList.add("show"); renderOutput(); renderRosterMarkOnly(); });
+
+  // output
+  root.appendChild(renderOutputShell());
+  renderOutput();
+}
+
+function renderRosterMarkOnly(){
+  // light update of the active student's marker without a full roster rebuild (keeps note focus)
+  const stu = active(); if(!stu) return;
+  const row = document.querySelector('#studentList .student[data-id="'+stu.id+'"]');
+  if(row){
+    const mark = row.querySelector(".st-mark");
+    const issues = studentHasContent(stu) ? studentLineIssues(stu) : [];
+    mark.classList.toggle("done", studentHasContent(stu));
+    mark.classList.toggle("attn", issues.length>0);
+  }
+  renderRosterIssues();
+}
+
+function buildSection(kind, stu){
+  const isS = kind==="strength";
+  const arr = isS ? W(stu).strengths : W(stu).growths;
+  const sec = document.createElement("div");
+  sec.className = "section "+kind;
+  const title = isS ? "Areas of Strength" : "Areas for Growth";
+  const hint = isS ? "stem · proficiency · evidence" : "stem · proficiency · next step";
+  sec.innerHTML =
+    '<div class="sec-head"><span class="tag">'+title+'</span><span class="hint">'+hint+'</span>'+
+    '<span class="count">'+arr.length+'</span></div>'+
+    '<div class="rows"></div>'+
+    '<div class="add-comment"><button class="btn sm">+ Add '+(isS?"strength":"growth")+'</button></div>';
+  const rowsEl = sec.querySelector(".rows");
+  if(!arr.length){
+    rowsEl.innerHTML = '<div class="empty-note">None yet.</div>';
+  }
+  arr.forEach(item=> rowsEl.appendChild(isS ? strengthRow(stu,item) : growthRow(stu,item)));
+  sec.querySelector(".add-comment button").addEventListener("click", ()=>{ isS?newStrength():newGrowth(); renderBuilder(); });
+  return sec;
+}
+
+function buildOtherSection(stu){
+  if(!W(stu).others) W(stu).others=[];
+  const arr = W(stu).others;
+  const sec = document.createElement("div");
+  sec.className = "section other";
+  sec.innerHTML =
+    '<div class="sec-head"><span class="tag">Other comments</span>'+
+    '<span class="hint">NATR · NER · EAL — standalone indicator statements</span>'+
+    '<span class="count">'+arr.length+'</span></div>'+
+    '<div class="rows"></div>'+
+    '<div class="add-comment"><button class="btn sm">+ Add other comment</button></div>';
+  const rowsEl = sec.querySelector(".rows");
+  if(!arr.length){ rowsEl.innerHTML = '<div class="empty-note">None yet.</div>'; }
+  arr.forEach(item=> rowsEl.appendChild(otherRow(stu,item)));
+  sec.querySelector(".add-comment button").addEventListener("click", ()=>{ newOther(); renderBuilder(); });
+  return sec;
+}
+
+function stemChips(selected, onToggle){
+  const wrap=document.createElement("div"); wrap.className="stem-chips";
+  B().stems.forEach(st=>{
+    const on = selected.includes(st.id);
+    const b=document.createElement("button");
+    b.className="stem-chip"+(on?" on":""); b.textContent=st.label;
+    b.addEventListener("click", ()=>onToggle(st.id));
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
+function otherRow(stu, o){
+  const row=document.createElement("div"); row.className="crow";
+  const controls=document.createElement("div"); controls.className="controls";
+  if(!o.stems) o.stems=[];
+  if(o.custom==null) o.custom="";
+
+  // type dropdown (presets + "write my own")
+  const typeSel=document.createElement("select"); typeSel.className="sel"; typeSel.style.maxWidth="320px";
+  typeSel.innerHTML = state.otherComments.map(t=>'<option value="'+t.id+'"'+(t.id===o.templateId?" selected":"")+'>'+esc(t.label)+'</option>').join("")
+    + '<option value="__custom__"'+(o.templateId==="__custom__"?" selected":"")+'>✎ Write my own…</option>';
+  typeSel.addEventListener("change", e=>{
+    o.templateId=e.target.value;
+    if(o.templateId!=="__custom__"){
+      const tpl=byId(state.otherComments,o.templateId);
+      if(tpl && tpl.usesStems && !o.stems.length) o.stems=[B().stems[0].id];
+    }
+    setDirty(); renderBuilder();
+  });
+  controls.appendChild(field("Type", typeSel));
+
+  // stem multi-select — shown whenever the chosen text can use {stems}
+  const isCustom = o.templateId==="__custom__";
+  if(otherUsesStems(o) || isCustom){
+    const chips=stemChips(o.stems, id=>{
+      if(o.stems.includes(id)) o.stems=o.stems.filter(x=>x!==id);
+      else o.stems.push(id);
+      setDirty(); renderBuilder();
+    });
+    const lbl = isCustom ? "Stem(s) — used only if you type {stems}" : "Stem(s) — pick one or more";
+    controls.appendChild(field(lbl, chips));
+  }
+
+  const del=document.createElement("button"); del.className="btn danger sm"; del.textContent="Remove";
+  del.addEventListener("click", ()=>{ W(stu).others=W(stu).others.filter(x=>x.id!==o.id); setDirty(); renderBuilder(); });
+  const delWrap=document.createElement("div"); delWrap.className="field"; delWrap.appendChild(document.createElement("label")); delWrap.appendChild(del);
+  controls.appendChild(delWrap);
+  row.appendChild(controls);
+
+  // custom free-text box
+  if(isCustom){
+    const wrap=document.createElement("div"); wrap.className="field"; wrap.style.marginTop="4px";
+    const lab=document.createElement("label"); lab.textContent="Your comment — you can use {name}, {their}, {stems}";
+    const ta=document.createElement("textarea"); ta.className="custom-other"; ta.value=o.custom||"";
+    ta.placeholder="Write your own comment for this student…";
+    ta.addEventListener("input", e=>{ o.custom=e.target.value; dirty=true; document.getElementById("dirtyFlag").classList.add("show"); updateRowPreview(); });
+    wrap.append(lab, ta); row.appendChild(wrap);
+  }
+
+  const prev=document.createElement("div"); prev.className="preview"; prev.dataset.kind="o"; prev.dataset.id=o.id;
+  row.appendChild(prev);
+  fillOtherPreview(prev, stu, o);
+  return row;
+}
+function fillOtherPreview(prev, stu, o){
+  prev.textContent = buildOther(stu,o);
+  if(o.templateId==="__custom__" && !(o.custom||"").trim()){
+    prev.classList.add("warn");
+    prev.innerHTML = '<span class="miss">Type your comment above…</span>';
+  } else if(otherUsesStems(o) && (!o.stems || !o.stems.length)){
+    prev.classList.add("warn");
+    prev.innerHTML = esc(buildOther(stu,o))+' <span class="miss">— pick at least one stem</span>';
+  } else prev.classList.remove("warn");
+}
+
+function levelChips(curr, onPick){
+  const wrap = document.createElement("div");
+  wrap.className = "levels";
+  ["4","3","2","1"].forEach(l=>{
+    const b=document.createElement("button");
+    b.className="lv"+(l===curr?" on":""); b.dataset.l=l; b.textContent=l; b.title="Level "+l;
+    b.addEventListener("click", ()=>onPick(l));
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+function field(labelText, controlEl){
+  const f=document.createElement("div"); f.className="field";
+  const l=document.createElement("label"); l.textContent=labelText;
+  f.appendChild(l); f.appendChild(controlEl); return f;
+}
+
+function strengthRow(stu, s){
+  const row=document.createElement("div"); row.className="crow";
+  const controls=document.createElement("div"); controls.className="controls";
+
+  // proficiency level + descriptor
+  const lvls = levelChips(s.level, l=>{ s.level=l; if(!B().descriptors[l].includes(s.desc)) s.desc=B().descriptors[l][0]; setDirty(); renderBuilder(); });
+  const descSel=document.createElement("select"); descSel.className="sel"; descSel.style.minWidth="130px";
+  descSel.innerHTML = B().descriptors[s.level].map(d=>'<option'+(d===s.desc?" selected":"")+'>'+esc(d)+'</option>').join("");
+  descSel.addEventListener("change", e=>{ s.desc=e.target.value; setDirty(); updateRowPreview(); });
+
+  // stem
+  const stemSel=document.createElement("select"); stemSel.className="sel";
+  stemSel.innerHTML = optionList(B().stems, s.stemId, o=>o.label);
+  stemSel.addEventListener("change", e=>{
+    s.stemId=e.target.value; s.taskId="";
+    const cur=s.assignmentId && byId(B().assignments||[], s.assignmentId);
+    if(cur && cur.stemId && cur.stemId!==s.stemId) s.assignmentId="";   // drop an assignment that belongs to another stem
+    setDirty(); renderBuilder();
+  });
+
+  // evidence (tasks for this stem; grouped by unit only when the bank uses units)
+  const taskSel=document.createElement("select"); taskSel.className="sel"; taskSel.style.maxWidth="360px";
+  taskSel.appendChild(new Option("— choose evidence —",""));
+  if(B().usesUnits){
+    B().units.forEach(u=>{
+      const ts=B().tasks.filter(t=>t.stemId===s.stemId && t.unitId===u.id);
+      if(!ts.length) return;
+      const og=document.createElement("optgroup"); og.label=u.label;
+      ts.forEach(t=>{ const o=new Option(shorten(t.text), t.id); if(t.id===s.taskId) o.selected=true; og.appendChild(o); });
+      taskSel.appendChild(og);
+    });
+    // any tasks without a unit still appear
+    const noUnit=B().tasks.filter(t=>t.stemId===s.stemId && !byId(B().units,t.unitId));
+    noUnit.forEach(t=>{ const o=new Option(shorten(t.text), t.id); if(t.id===s.taskId)o.selected=true; taskSel.appendChild(o); });
+  } else {
+    B().tasks.filter(t=>t.stemId===s.stemId).forEach(t=>{ const o=new Option(shorten(t.text), t.id); if(t.id===s.taskId)o.selected=true; taskSel.appendChild(o); });
+  }
+  if(s.taskId && !byId(B().tasks,s.taskId)) s.taskId="";
+  taskSel.value = s.taskId || "";
+  taskSel.addEventListener("change", e=>{ s.taskId=e.target.value; setDirty(); updateRowPreview(); });
+
+  // optional assignment / evidence (only for banks that have an assignments list; scoped to the stem)
+  let asgSel=null;
+  const stemAssignments = (B().assignments||[]).filter(a=>!a.stemId || a.stemId===s.stemId);
+  if(stemAssignments.length){
+    asgSel=document.createElement("select"); asgSel.className="sel"; asgSel.style.maxWidth="260px";
+    asgSel.appendChild(new Option("— no assignment —",""));
+    stemAssignments.forEach(a=>{ const o=new Option(a.text.trim(), a.id); if(a.id===s.assignmentId)o.selected=true; asgSel.appendChild(o); });
+    if(s.assignmentId && !byId(stemAssignments,s.assignmentId)) s.assignmentId="";
+    asgSel.value = s.assignmentId || "";
+    asgSel.addEventListener("change", e=>{ s.assignmentId=e.target.value; setDirty(); updateRowPreview(); });
+  } else if(s.assignmentId){
+    s.assignmentId="";   // no assignments available for this stem
+  }
+
+  const del=document.createElement("button"); del.className="btn danger sm"; del.textContent="Remove";
+  del.addEventListener("click", ()=>{ W(stu).strengths=W(stu).strengths.filter(x=>x.id!==s.id); setDirty(); renderBuilder(); });
+
+  controls.appendChild(field("Level", lvls));
+  controls.appendChild(field("Proficiency word", descSel));
+  controls.appendChild(field("Stem", stemSel));
+  controls.appendChild(field("Evidence", taskSel));
+  if(asgSel) controls.appendChild(field("Assignment", asgSel));
+  const delWrap=document.createElement("div"); delWrap.className="field"; delWrap.appendChild(document.createElement("label")); delWrap.appendChild(del);
+  controls.appendChild(delWrap);
+  row.appendChild(controls);
+
+  const prev=document.createElement("div"); prev.className="preview"; prev.dataset.kind="s"; prev.dataset.id=s.id;
+  row.appendChild(prev);
+  fillStrengthPreview(prev, stu, s);
+  return row;
+}
+
+function growthRow(stu, g){
+  const row=document.createElement("div"); row.className="crow";
+  const controls=document.createElement("div"); controls.className="controls";
+
+  const lvls = levelChips(g.level, l=>{ g.level=l; if(!B().descriptors[l].includes(g.desc)) g.desc=B().descriptors[l][0]; setDirty(); renderBuilder(); });
+  const descSel=document.createElement("select"); descSel.className="sel"; descSel.style.minWidth="130px";
+  descSel.innerHTML = B().descriptors[g.level].map(d=>'<option'+(d===g.desc?" selected":"")+'>'+esc(d)+'</option>').join("");
+  descSel.addEventListener("change", e=>{ g.desc=e.target.value; setDirty(); updateRowPreview(); });
+
+  const stemSel=document.createElement("select"); stemSel.className="sel";
+  stemSel.innerHTML = optionList(B().stems, g.stemId, o=>o.label);
+  stemSel.addEventListener("change", e=>{
+    g.stemId=e.target.value;
+    const act=B().actions.find(a=>a.stemId===g.stemId); g.actionId=act?act.id:"";
+    const stp=B().nextSteps.find(n=>n.stemId===g.stemId); g.stepId=stp?stp.id:"";
+    setDirty(); renderBuilder();
+  });
+
+  const actSel=document.createElement("select"); actSel.className="sel"; actSel.style.maxWidth="340px";
+  actSel.appendChild(new Option("— choose focus —",""));
+  B().actions.filter(a=>!a.stemId || a.stemId===g.stemId).forEach(a=>{ const o=new Option(shorten(stripTok(a.text)), a.id); if(a.id===g.actionId)o.selected=true; actSel.appendChild(o); });
+  actSel.value = g.actionId || "";
+  actSel.addEventListener("change", e=>{ g.actionId=e.target.value; setDirty(); updateRowPreview(); });
+
+  const stepSel=document.createElement("select"); stepSel.className="sel"; stepSel.style.maxWidth="300px";
+  stepSel.appendChild(new Option("— choose goal —",""));
+  B().nextSteps.filter(n=>!n.stemId || n.stemId===g.stemId).forEach(n=>{ const o=new Option(shorten(stripTok(n.text)), n.id); if(n.id===g.stepId)o.selected=true; stepSel.appendChild(o); });
+  stepSel.value = g.stepId || "";
+  stepSel.addEventListener("change", e=>{ g.stepId=e.target.value; setDirty(); updateRowPreview(); });
+
+  const del=document.createElement("button"); del.className="btn danger sm"; del.textContent="Remove";
+  del.addEventListener("click", ()=>{ W(stu).growths=W(stu).growths.filter(x=>x.id!==g.id); setDirty(); renderBuilder(); });
+
+  controls.appendChild(field("Level", lvls));
+  controls.appendChild(field("Proficiency word", descSel));
+  controls.appendChild(field("Stem", stemSel));
+  controls.appendChild(field("Next-step focus", actSel));
+  controls.appendChild(field("Goal", stepSel));
+  const delWrap=document.createElement("div"); delWrap.className="field"; delWrap.appendChild(document.createElement("label")); delWrap.appendChild(del);
+  controls.appendChild(delWrap);
+  row.appendChild(controls);
+
+  const prev=document.createElement("div"); prev.className="preview"; prev.dataset.kind="g"; prev.dataset.id=g.id;
+  row.appendChild(prev);
+  fillGrowthPreview(prev, stu, g);
+  return row;
+}
+
+function fillStrengthPreview(prev, stu, s){
+  prev.textContent = buildStrength(stu,s);
+  if(!s.taskId){ prev.classList.add("warn"); prev.innerHTML = esc(buildStrength(stu,s))+' <span class="miss">— add evidence to complete this line</span>'; }
+  else prev.classList.remove("warn");
+}
+function fillGrowthPreview(prev, stu, g){
+  prev.textContent = buildGrowth(stu,g);
+  if(!g.actionId && !g.stepId){ prev.classList.add("warn"); prev.innerHTML = esc(buildGrowth(stu,g))+' <span class="miss">— add a next step to complete this line</span>'; }
+  else prev.classList.remove("warn");
+}
+function updateRowPreview(){
+  // refresh just the previews + output, no rebuild (keeps select focus)
+  const stu=active(); if(!stu) return;
+  document.querySelectorAll("#builder .preview").forEach(prev=>{
+    const id=prev.dataset.id;
+    if(prev.dataset.kind==="s"){ const s=byId(W(stu).strengths,id); if(s) fillStrengthPreview(prev,stu,s); }
+    else if(prev.dataset.kind==="g"){ const g=byId(W(stu).growths,id); if(g) fillGrowthPreview(prev,stu,g); }
+    else if(prev.dataset.kind==="o"){ const o=byId(W(stu).others,id); if(o) fillOtherPreview(prev,stu,o); }
+  });
+  renderOutput(); renderRosterMarkOnly();
+}
+
+function renderOutputShell(){
+  const o=document.createElement("div"); o.className="output";
+  o.innerHTML =
+    '<div class="o-head"><span class="t">Finished comment</span><span class="stat" id="oStat"></span>'+
+    '<span class="tools">'+
+      '<span class="copied" id="copiedMsg">Copied ✓</span>'+
+      '<button class="btn sm" id="prevStuBtn" title="Previous student">‹ Prev</button>'+
+      '<span class="o-pos" id="oPos"></span>'+
+      '<button class="btn sm" id="nextStuBtn" title="Next student">Next ›</button>'+
+      '<select class="bul-sel" id="bulSel" title="Bullet style">'+
+        '<option value="• ">•  bullet</option><option value="- ">-  dash</option>'+
+        '<option value="\u2013 ">\u2013  en-dash</option><option value="">no bullet</option>'+
+      '</select>'+
+      '<button class="btn sm" id="copyAllBtn">Copy all</button>'+
+      '<button class="btn primary sm" id="copyBtn">Copy comment</button>'+
+    '</span></div>'+
+    '<div class="o-body"><pre class="comment" id="oBody"></pre></div>';
+  o.querySelector("#bulSel").value = state.meta.bullet;
+  o.querySelector("#bulSel").addEventListener("change", e=>{ state.meta.bullet=e.target.value; setDirty(); renderOutput(); });
+  o.querySelector("#copyBtn").addEventListener("click", copyCurrent);
+  o.querySelector("#copyAllBtn").addEventListener("click", copyAll);
+  o.querySelector("#prevStuBtn").addEventListener("click", ()=>gotoStudent(-1));
+  o.querySelector("#nextStuBtn").addEventListener("click", ()=>gotoStudent(1));
+  return o;
+}
+/* Move to the student delta places away in roster order (used by the ‹ Prev / Next › stepper). */
+function gotoStudent(delta){
+  const idx=state.students.findIndex(s=>s.id===state.activeId);
+  if(idx<0) return;
+  const ni=idx+delta;
+  if(ni<0 || ni>=state.students.length) return;
+  state.activeId=state.students[ni].id;
+  render();
+}
+function updateStepper(){
+  const prev=document.getElementById("prevStuBtn"), next=document.getElementById("nextStuBtn"), pos=document.getElementById("oPos");
+  if(!prev||!next) return;
+  const idx=state.students.findIndex(s=>s.id===state.activeId);
+  const n=state.students.length;
+  const atStart = idx<=0, atEnd = idx<0 || idx>=n-1;
+  prev.disabled=atStart; prev.style.opacity=atStart?"0.4":""; prev.style.cursor=atStart?"not-allowed":"";
+  next.disabled=atEnd;  next.style.opacity=atEnd?"0.4":"";   next.style.cursor=atEnd?"not-allowed":"";
+  if(pos) pos.textContent = (idx>=0 && n) ? ((idx+1)+" / "+n) : "";
+}
+function renderOutput(){
+  const stu=active(); const body=document.getElementById("oBody"); const stat=document.getElementById("oStat");
+  if(!body) return;
+  updateStepper();
+  const lines = stu ? buildComment(stu) : [];
+  if(!lines.length){ body.innerHTML='<span class="o-empty">Add a strength or growth area and your comment appears here.</span>'; stat.textContent=""; return; }
+  body.innerHTML = lines.map(l=> l.h ? '<span class="h">'+esc(l.t)+'</span>' : esc(l.t)).join("\n");
+  const txt = commentToText(stu);
+  const words = (txt.trim().match(/\S+/g)||[]).length;
+  stat.textContent = words+" words · "+txt.length+" characters";
+}
+function flashCopied(){ const m=document.getElementById("copiedMsg"); if(!m) return; m.classList.add("show"); setTimeout(()=>m.classList.remove("show"),1400); }
+function doCopy(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(flashCopied, ()=>fallbackCopy(text));
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); flashCopied(); }catch(e){ alert("Copy failed — select the text manually."); }
+  document.body.removeChild(ta);
+}
+function copyCurrent(){ const stu=active(); if(stu) doCopy(commentToText(stu)); }
+function copyAll(){
+  const blocks=[];
+  state.students.forEach(stu=>{ if(studentHasContent(stu)){ const name=(properName(stu.first)+" "+stu.last).trim(); blocks.push(name+"\n"+commentToText(stu)); } });
+  if(!blocks.length){ alert("No completed comments yet."); return; }
+  doCopy(blocks.join("\n\n———\n\n"));
+}
+
+function shorten(s){ s=s.replace(/\{their\}/g,"their"); return s.length>62 ? s.slice(0,60).trim()+"…" : s; }
+function stripTok(s){ return s.replace(/\{their\}/g,"their").replace(/\{name\}/g,"the student"); }
+
+/* ============================================================ RENDER: BANK ============================================================ */
+function renderBank(){
+  const w=document.getElementById("bankWrap");
+  w.innerHTML =
+    '<div class="bank-title">'+
+      '<input id="subjNameInput" value="'+esc(state.meta.activeSubject)+'" title="Rename this comment bank">'+
+      '<span class="bank-title-suffix">Comment Bank</span>'+
+      '<label class="uses-units" title="Tick if this subject organizes evidence into units (e.g. Science)"><input type="checkbox" id="usesUnitsChk"'+(B().usesUnits?" checked":"")+'> uses units</label>'+
+      (B().usesUnits ? '<label class="uses-units" title="If off, the unit name only organizes your criteria and is not printed in the comment"><input type="checkbox" id="unitInCommentChk"'+(B().unitsInComment!==false?" checked":"")+'> show unit in comment</label>' : '')+
+      '<label class="uses-units" title="On: lines read \u201cdemonstrates an excellent understanding in\u2026\u201d. Off: \u201cdemonstrates excellent proficiency in\u2026\u201d"><input type="checkbox" id="headNounChk"'+(B().headNoun==="understanding"?" checked":"")+'> say \u201cunderstanding\u201d</label>'+
+      '<label class="uses-units" title="On: each evidence task holds four versions (4/3/2/1) and the one matching the level fills in. Off: one version, with the proficiency word carrying the level."><input type="checkbox" id="leveledChk"'+(B().leveledEvidence?" checked":"")+'> evidence varies by level</label>'+
+      '<button class="btn danger sm" id="removeSubjBtn"'+(subjectNames().length<=1?" disabled style=\"opacity:.4;cursor:not-allowed\"":"")+'>Delete this bank</button>'+
+    '</div>'+
+    '<p class="bank-intro">This is your <b>'+esc(state.meta.activeSubject)+'</b> content. Reword anything, delete what you didn\u2019t teach, and add this term\u2019s assessments. Use the <b>Bank</b> menu at the top to switch subjects or start a new one. Changes are live — <b>Export data</b> before closing.</p>'+
+    '<div class="share-bank" title="Trade a single subject\u2019s comments with a colleague \u2014 this is separate from saving your own work">'+
+      '<span class="share-label">Share one subject with a colleague</span>'+
+      '<button class="btn sm" id="exportBankBtn" title="Download just this subject\u2019s comments as a small file (no class list, no other subjects) to send to a colleague">Share this bank</button>'+
+      '<button class="btn sm" id="importBankBtn" title="Load a single-subject bank file a colleague sent you \u2014 it is added as a new subject in your Bank menu. (To re-open your own saved work, use Import data at the top instead.)">Add a shared bank</button>'+
+    '</div>'+
+    '<div class="legend">'+
+      '<code><b>{name}</b> → the student</code>'+
+      '<code><b>{their}</b> → his / her / their</code>'+
+      '<code><b>{they}</b> · <b>{them}</b> · <b>{theyre}</b></code>'+
+      '<code><b>{stems}</b> → selected stem name(s)</code>'+
+      '<code><b>{outcome|outcomes}</b> → auto singular/plural</code>'+
+    '</div>';
+  w.querySelector("#subjNameInput").addEventListener("change", e=>renameSubject(state.meta.activeSubject, e.target.value));
+  w.querySelector("#usesUnitsChk").addEventListener("change", e=>{ B().usesUnits=e.target.checked; setDirty(); renderBank(); renderBuilder(); });
+  const uicChk=w.querySelector("#unitInCommentChk");
+  if(uicChk) uicChk.addEventListener("change", e=>{ B().unitsInComment=e.target.checked; setDirty(); renderBuilder(); });
+  w.querySelector("#headNounChk").addEventListener("change", e=>{ B().headNoun = e.target.checked ? "understanding" : "proficiency"; setDirty(); renderBuilder(); });
+  w.querySelector("#leveledChk").addEventListener("change", e=>{
+    B().leveledEvidence = e.target.checked;
+    if(e.target.checked){ B().tasks.forEach(t=>{ if(!t.byLevel) t.byLevel = seedByLevel(t.text); }); }
+    setDirty(); renderBank(); renderBuilder();
+  });
+  w.querySelector("#removeSubjBtn").addEventListener("click", ()=>removeSubject(state.meta.activeSubject));
+  w.querySelector("#exportBankBtn").addEventListener("click", exportBank);
+  w.querySelector("#importBankBtn").addEventListener("click", ()=>document.getElementById("bankFileInput").click());
+
+  // Stems
+  w.appendChild(acc("Stems", B().stems.length, body=>{
+    B().stems.forEach(st=>{
+      const it=bankItem();
+      const lab=mkInput(st.label,"tx",v=>{st.label=v;setDirty();renderBuilder();}); lab.style.flex="0 0 150px";
+      const prep=mkTextarea(st.prep,"tx",v=>{st.prep=v;setDirty();updateRowPreview();});
+      const del=mkDel(()=>{ if(confirm("Delete this stem and its linked evidence/actions?")){ removeStem(st.id); renderBank(); render(); }});
+      it.append(lab,prep,del); body.appendChild(it);
+    });
+    const add=document.createElement("div"); add.className="add-line";
+    const la=document.createElement("input"); la.placeholder="stem name, e.g. Reading"; la.style.flex="0 0 150px";
+    const pr=document.createElement("input"); pr.className="grow"; pr.placeholder='wording after \u201cdemonstrates \u2026\u201d, e.g. in reading to explore and understand.';
+    const btn=document.createElement("button"); btn.className="btn primary sm"; btn.textContent="Add stem";
+    const addStem=()=>{ const label=la.value.trim(); if(!label) return; let p=pr.value.trim(); if(p && !/[.!?]$/.test(p)) p+="."; if(!p) p="in this area of learning."; B().stems.push({id:uid("st"), label, prep:p}); setDirty(); renderBank(); render(); };
+    btn.addEventListener("click", addStem);
+    pr.addEventListener("keydown", e=>{ if(e.key==="Enter") addStem(); });
+    add.append(la,pr,btn); body.appendChild(add);
+  }));
+
+  // Proficiency descriptors
+  w.appendChild(acc("Proficiency words", countDesc(), body=>{
+    ["4","3","2","1"].forEach(l=>{
+      const g=document.createElement("div"); g.className="bank-group";
+      const colv=getComputedStyle(document.documentElement).getPropertyValue("--l"+l);
+      g.innerHTML='<div class="gh"><span class="lvtag" style="background:'+colv.trim()+'">'+l+'</span> Level '+l+' words</div>';
+      B().descriptors[l].forEach((d,i)=>{
+        const it=bankItem();
+        const inp=mkInput(d,"tx",v=>{ B().descriptors[l][i]=v.trim(); setDirty(); });
+        const del=mkDel(()=>{ B().descriptors[l].splice(i,1); setDirty(); renderBank(); });
+        it.append(inp,del); g.appendChild(it);
+      });
+      const add=document.createElement("div"); add.className="add-line";
+      const ni=document.createElement("input"); ni.placeholder="new level "+l+" word"; ni.className="grow";
+      const nb=document.createElement("button"); nb.className="btn primary sm"; nb.textContent="Add";
+      nb.addEventListener("click",()=>{ if(ni.value.trim()){ B().descriptors[l].push(ni.value.trim()); setDirty(); renderBank(); }});
+      add.append(ni,nb); g.appendChild(add);
+      body.appendChild(g);
+    });
+  }));
+
+  // Units (only for banks that use units)
+  if(B().usesUnits){
+    w.appendChild(acc("Units", B().units.length, body=>{
+      B().units.forEach(u=>{
+        const it=bankItem();
+        const lab=mkInput(u.label,"tx",v=>{u.label=v;setDirty();renderBuilder();}); lab.style.flex="0 0 200px";
+        const ctx=mkInput(u.context,"tx",v=>{u.context=v;setDirty();updateRowPreview();}); ctx.placeholder="phrase, e.g. our chemistry unit";
+        const del=mkDel(()=>{ if(confirm("Delete this unit and its evidence tasks?")){ removeUnit(u.id); renderBank(); render(); }});
+        it.append(lab,ctx,del); body.appendChild(it);
+      });
+      const add=document.createElement("div"); add.className="add-line";
+      const a=document.createElement("input"); a.placeholder="unit name"; a.style.flex="0 0 200px";
+      const b=document.createElement("input"); b.placeholder="context phrase (our ___ unit)"; b.className="grow";
+      const btn=document.createElement("button"); btn.className="btn primary sm"; btn.textContent="Add unit";
+      btn.addEventListener("click",()=>{ if(a.value.trim()){ B().units.push({id:uid("un"),label:a.value.trim(),context:b.value.trim()||("our "+a.value.trim().toLowerCase()+" unit")}); setDirty(); renderBank(); }});
+      add.append(a,b,btn); body.appendChild(add);
+    }));
+  }
+
+  // Strength evidence (tasks)
+  w.appendChild(acc("Evidence (strength tasks)", B().tasks.length, body=>{
+    if(B().leveledEvidence){
+      body.insertAdjacentHTML("beforeend", '<p style="font-size:12.5px;color:var(--ink-faint);margin:4px 0;line-height:1.5">Each piece of evidence has four versions — one per level. The version matching the level you pick on a student fills in after "…where [name] …", so the specialised language appears alongside the proficiency word. Leave a box blank to fall back to the base wording.</p>');
+    } else if(!B().usesUnits){
+      body.insertAdjacentHTML("beforeend", '<p style="font-size:12.5px;color:var(--ink-faint);margin:4px 0;line-height:1.5">The comment will read "This was observed when [name] …". Tick <b>uses units</b> above to add "during our ___ unit".</p>');
+    }
+    B().stems.forEach(st=>{
+      const g=document.createElement("div"); g.className="bank-group";
+      g.innerHTML='<div class="gh">'+esc(st.label)+'</div>';
+      B().tasks.filter(t=>t.stemId===st.id).forEach(t=>{
+        if(B().leveledEvidence){ g.appendChild(leveledTaskItem(t)); return; }
+        const it=bankItem();
+        if(B().usesUnits){ const usel=mkUnitSelect(t.unitId, v=>{t.unitId=v;setDirty();render();}); it.append(usel); }
+        const txt=mkTextarea(t.text,"tx",v=>{t.text=v;setDirty();render();});
+        const del=mkDel(()=>{ B().tasks=B().tasks.filter(x=>x.id!==t.id); setDirty(); renderBank(); render(); });
+        it.append(txt,del); g.appendChild(it);
+      });
+      const add=document.createElement("div"); add.className="add-line";
+      let usel=null;
+      if(B().usesUnits && !B().leveledEvidence){ usel=mkUnitSelect(B().units[0]?.id||"", ()=>{}); add.append(usel); }
+      const ti=document.createElement("textarea"); ti.className="grow";
+      ti.placeholder = B().leveledEvidence ? 'base wording — seeds all four levels, then refine each, e.g. "successfully …"' : 'what the student did, e.g. "completed a lab on…" — you can use {their}';
+      const btn=document.createElement("button"); btn.className="btn primary sm"; btn.textContent="Add";
+      btn.addEventListener("click",()=>{ if(ti.value.trim()){ const base=ti.value.trim(); const t={id:uid("t"),stemId:st.id,unitId:usel?usel.value:"",text:base}; if(B().leveledEvidence) t.byLevel=seedByLevel(base); B().tasks.push(t); setDirty(); renderBank(); render(); }});
+      add.append(ti,btn); g.appendChild(add);
+      body.appendChild(g);
+    });
+  }));
+
+  // Assignments / evidence (the "observed in ___" piece)
+  w.appendChild(acc("Assignments / evidence", (B().assignments||[]).length, body=>{
+    const conn = B().assignmentConnector || "This was observed in {a}";
+    body.insertAdjacentHTML("beforeend", '<p style="font-size:12.5px;color:var(--ink-faint);margin:4px 0;line-height:1.5">Optional. When a teacher picks an assignment on a strength row, the comment reads "<b>'+esc(conn.replace("{a}","[assignment]").replace("{their}","their").replace("{poss}","their"))+', where [name] …</b>". Use <b>{a}</b> for the assignment name, plus <b>{poss}</b> (his/her/their, or "the" when no pronoun is set) or <b>{their}</b> in the phrase below. Set an assignment\u2019s <b>stem</b> to <b>all stems</b> to offer it everywhere, or to a single stem so it only appears on that stem\u2019s rows.</p>');
+    const connWrap=document.createElement("div"); connWrap.className="bank-item";
+    const cl=document.createElement("label"); cl.textContent="Lead-in phrase"; cl.style.cssText="font-size:12px;color:var(--ink-soft);flex:0 0 110px";
+    const ci=mkInput(conn,"tx",v=>{ B().assignmentConnector=v.trim()||"This was observed in {a}"; setDirty(); renderBuilder(); }); ci.className="grow";
+    connWrap.append(cl,ci); body.appendChild(connWrap);
+    const g=document.createElement("div"); g.className="bank-group"; g.innerHTML='<div class="gh">Assignment names</div>';
+    const mkScopeSel=(selId,onChange)=>{
+      const s=document.createElement("select"); s.className="tag-sel"; s.style.maxWidth="170px";
+      s.appendChild(new Option("— all stems —",""));
+      B().stems.forEach(st=>{ const o=new Option(st.label, st.id); if(st.id===(selId||""))o.selected=true; s.appendChild(o); });
+      s.value=selId||"";
+      s.addEventListener("change", e=>onChange(e.target.value));
+      return s;
+    };
+    (B().assignments||[]).forEach(a=>{
+      const it=bankItem();
+      const scope=mkScopeSel(a.stemId, v=>{ a.stemId=v||""; setDirty(); renderBuilder(); });
+      const txt=mkInput(a.text,"tx",v=>{a.text=v;setDirty();updateRowPreview();}); txt.className="grow";
+      const del=mkDel(()=>{ removeAssignment(a.id); renderBank(); render(); });
+      it.append(scope,txt,del); g.appendChild(it);
+    });
+    const add=document.createElement("div"); add.className="add-line";
+    let addScopeVal="";
+    const addScope=mkScopeSel("", v=>{ addScopeVal=v||""; });
+    const ti=document.createElement("input"); ti.placeholder='assignment name, e.g. "the In-Class Essay"'; ti.className="grow";
+    const btn=document.createElement("button"); btn.className="btn primary sm"; btn.textContent="Add";
+    btn.addEventListener("click",()=>{ if(ti.value.trim()){ if(!B().assignments)B().assignments=[]; B().assignments.push({id:uid("asg"),text:ti.value.trim(),stemId:addScopeVal}); setDirty(); renderBank(); render(); }});
+    add.append(addScope,ti,btn); g.appendChild(add);
+    body.appendChild(g);
+  }));
+
+  // Growth actions
+  w.appendChild(acc("Growth — next-step focus", B().actions.length, body=>{
+    growthListEditor(body, "actions", "a", 'e.g. "to engage fully with … topics"');
+  }));
+
+  // Growth goals (next steps)
+  w.appendChild(acc("Growth — goals", B().nextSteps.length, body=>{
+    growthListEditor(body, "nextSteps", "n", 'e.g. "to deepen {their} understanding of these concepts."');
+  }));
+
+  // Default picks for newly-added strength / growth rows
+  w.appendChild(acc("Default picks for new strengths / growths", (B().strengthDefaults||[]).length+(B().growthDefaults||[]).length, body=>{ renderDefaultsBody(body); }));
+
+  // Other comments (standalone statements, shared by all subjects)
+  w.appendChild(acc("Other comments — shared by all subjects", state.otherComments.length, body=>{
+    body.insertAdjacentHTML("beforeend", '<p style="font-size:12.5px;color:var(--ink-faint);margin:4px 0 4px;line-height:1.5">Standalone indicator statements, <b>shared across every subject bank</b>. {stems} fills in with whichever subject\u2019s stems you tick. Tick <b>uses stem(s)</b> if the wording includes {stems}.</p>');
+    state.otherComments.forEach(oc=>{
+      const g=document.createElement("div"); g.className="bank-group";
+      const lab=mkInput(oc.label,"tx",v=>{oc.label=v;setDirty();renderBuilder();});
+      const head=document.createElement("div"); head.className="gh"; head.style.textTransform="none"; head.style.fontSize="13px";
+      head.appendChild(lab);
+      // uses-stems toggle
+      const tog=document.createElement("label"); tog.style.cssText="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-soft);font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0";
+      const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=!!oc.usesStems;
+      cb.addEventListener("change",()=>{ oc.usesStems=cb.checked; setDirty(); renderBuilder(); });
+      tog.append(cb, document.createTextNode("uses stem(s)"));
+      head.appendChild(tog);
+      const del=mkDel(()=>{ if(confirm("Delete this other-comment type?")){ removeOther(oc.id); renderBank(); render(); }});
+      head.appendChild(del);
+      g.appendChild(head);
+      const it=bankItem();
+      const txt=mkTextarea(oc.text,"tx",v=>{oc.text=v;setDirty();render();}); txt.style.minHeight="60px";
+      it.append(txt); g.appendChild(it);
+      body.appendChild(g);
+    });
+    const add=document.createElement("div"); add.className="add-line";
+    const ni=document.createElement("input"); ni.placeholder="label (e.g. ADP — Alternate…)"; ni.style.flex="0 0 220px";
+    const ti=document.createElement("textarea"); ti.placeholder="comment wording — you can use {name} and {stems}"; ti.className="grow";
+    const btn=document.createElement("button"); btn.className="btn primary sm"; btn.textContent="Add type";
+    btn.addEventListener("click",()=>{ if(ni.value.trim()&&ti.value.trim()){ state.otherComments.push({id:uid("oc"),label:ni.value.trim(),usesStems:/\{stems\}/.test(ti.value),text:ti.value.trim()}); setDirty(); renderBank(); render(); }});
+    add.append(ni,ti,btn); body.appendChild(add);
+  }));
+}
+
+function countDesc(){ return ["4","3","2","1"].reduce((n,l)=>n+B().descriptors[l].length,0); }
+function acc(title, count, fill){
+  const d=document.createElement("details"); d.className="acc";
+  const s=document.createElement("summary");
+  s.innerHTML=esc(title)+' <span class="num">'+count+'</span><span class="chev">▶</span>';
+  d.appendChild(s);
+  const body=document.createElement("div"); body.className="acc-body";
+  fill(body); d.appendChild(body);
+  return d;
+}
+function bankItem(){ const d=document.createElement("div"); d.className="bank-item"; return d; }
+function mkInput(val,cls,onChange){ const i=document.createElement("input"); i.className=cls; i.value=val; i.addEventListener("change",e=>onChange(e.target.value)); return i; }
+function mkTextarea(val,cls,onChange){ const t=document.createElement("textarea"); t.className=cls; t.value=val; t.addEventListener("change",e=>onChange(e.target.value)); return t; }
+function mkDel(fn){ const b=document.createElement("button"); b.className="btn danger sm"; b.textContent="✕"; b.title="Delete"; b.addEventListener("click",fn); return b; }
+function mkUnitSelect(sel,onChange){ const s=document.createElement("select"); s.className="tag-sel"; s.innerHTML=optionList(B().units,sel,o=>o.label); s.addEventListener("change",e=>onChange(e.target.value)); return s; }
+/* One evidence task shown as four per-level boxes (4/3/2/1), for banks with
+   level-specific evidence turned on. */
+function leveledTaskItem(t){
+  if(!t.byLevel) t.byLevel = seedByLevel(t.text);
+  const wrap=document.createElement("div"); wrap.className="bank-item";
+  wrap.style.flexDirection="column"; wrap.style.alignItems="stretch"; wrap.style.gap="6px";
+  ["4","3","2","1"].forEach(l=>{
+    const rowEl=document.createElement("div"); rowEl.style.cssText="display:flex;gap:8px;align-items:flex-start";
+    const colv=getComputedStyle(document.documentElement).getPropertyValue("--l"+l).trim()||"#888";
+    const tag=document.createElement("span"); tag.textContent=l;
+    tag.style.cssText="flex:0 0 auto;width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;margin-top:6px;background:"+colv;
+    const ta=mkTextarea(t.byLevel[l]||"","tx",v=>{ t.byLevel[l]=v; setDirty(); render(); }); ta.style.minHeight="34px";
+    rowEl.append(tag,ta); wrap.appendChild(rowEl);
+  });
+  const delRow=document.createElement("div"); delRow.style.cssText="display:flex;justify-content:flex-end";
+  delRow.appendChild(mkDel(()=>{ B().tasks=B().tasks.filter(x=>x.id!==t.id); setDirty(); renderBank(); render(); }));
+  wrap.appendChild(delRow);
+  return wrap;
+}
+
+/* ---- Default picks: pre-fill stem + evidence (strength) or stem + focus + goal
+   (growth) when a row is first added. Up to 3 each, applied in order (#1, #2, #3);
+   the level and proficiency word are always chosen per student, never defaulted. */
+function defaultTag(n){
+  const s=document.createElement("span"); s.textContent="#"+n;
+  s.style.cssText="flex:0 0 auto;min-width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font-size:12px;font-weight:700;padding:0 6px;margin-top:2px";
+  return s;
+}
+function bumpAccCount(body){
+  const det=body.closest("details"); if(!det) return;
+  const num=det.querySelector("summary .num");
+  if(num) num.textContent=(B().strengthDefaults||[]).length+(B().growthDefaults||[]).length;
+}
+function fillEvidenceOptions(sel, stemId, selId){
+  sel.innerHTML=""; sel.appendChild(new Option("— choose evidence —",""));
+  B().tasks.filter(t=>t.stemId===stemId).forEach(t=>{ const o=new Option(shorten(t.text), t.id); if(t.id===selId)o.selected=true; sel.appendChild(o); });
+  sel.value=selId||"";
+}
+function fillAssignmentOptions(sel, stemId, selId){
+  sel.innerHTML=""; sel.appendChild(new Option("— no assignment —",""));
+  (B().assignments||[]).filter(a=>!a.stemId||a.stemId===stemId).forEach(a=>{ const o=new Option(shorten(a.text.trim()), a.id); if(a.id===selId)o.selected=true; sel.appendChild(o); });
+  sel.value=selId||"";
+}
+function fillFocusOptions(sel, stemId, selId){
+  sel.innerHTML=""; sel.appendChild(new Option("— choose focus —",""));
+  B().actions.filter(a=>!a.stemId||a.stemId===stemId).forEach(a=>{ const o=new Option(shorten(stripTok(a.text)), a.id); if(a.id===selId)o.selected=true; sel.appendChild(o); });
+  sel.value=selId||"";
+}
+function fillGoalOptions(sel, stemId, selId){
+  sel.innerHTML=""; sel.appendChild(new Option("— choose goal —",""));
+  B().nextSteps.filter(n=>!n.stemId||n.stemId===stemId).forEach(n=>{ const o=new Option(shorten(stripTok(n.text)), n.id); if(n.id===selId)o.selected=true; sel.appendChild(o); });
+  sel.value=selId||"";
+}
+function strengthDefaultRow(d, i, body){
+  const it=bankItem(); it.style.alignItems="flex-start"; it.append(defaultTag(i+1));
+  const stemSel=document.createElement("select"); stemSel.className="tag-sel"; stemSel.innerHTML=optionList(B().stems, d.stemId, o=>o.label);
+  const evSel=document.createElement("select"); evSel.className="tag-sel"; evSel.style.maxWidth="240px"; fillEvidenceOptions(evSel, d.stemId, d.taskId);
+  let asg=null;
+  if((B().assignments||[]).length>0){
+    asg=document.createElement("select"); asg.className="tag-sel"; asg.style.maxWidth="200px";
+    fillAssignmentOptions(asg, d.stemId, d.assignmentId);
+    asg.addEventListener("change", e=>{ d.assignmentId=e.target.value; setDirty(); });
+  }
+  stemSel.addEventListener("change", e=>{
+    d.stemId=e.target.value;
+    const first=B().tasks.find(t=>t.stemId===d.stemId); d.taskId=first?first.id:"";
+    fillEvidenceOptions(evSel, d.stemId, d.taskId);
+    if(asg){
+      const cur=d.assignmentId && byId(B().assignments||[], d.assignmentId);
+      if(cur && cur.stemId && cur.stemId!==d.stemId) d.assignmentId="";   // drop a mismatched scoped assignment
+      fillAssignmentOptions(asg, d.stemId, d.assignmentId);
+    }
+    setDirty();
+  });
+  evSel.addEventListener("change", e=>{ d.taskId=e.target.value; setDirty(); });
+  it.append(stemSel, evSel);
+  if(asg) it.append(asg);
+  it.append(mkDel(()=>{ B().strengthDefaults.splice(i,1); setDirty(); renderDefaultsBody(body); bumpAccCount(body); }));
+  return it;
+}
+function growthDefaultRow(d, i, body){
+  const it=bankItem(); it.style.alignItems="flex-start"; it.append(defaultTag(i+1));
+  const stemSel=document.createElement("select"); stemSel.className="tag-sel"; stemSel.innerHTML=optionList(B().stems, d.stemId, o=>o.label);
+  const focusSel=document.createElement("select"); focusSel.className="tag-sel"; focusSel.style.maxWidth="240px"; fillFocusOptions(focusSel, d.stemId, d.actionId);
+  const goalSel=document.createElement("select"); goalSel.className="tag-sel"; goalSel.style.maxWidth="220px"; fillGoalOptions(goalSel, d.stemId, d.stepId);
+  stemSel.addEventListener("change", e=>{ d.stemId=e.target.value;
+    const a=B().actions.find(x=>x.stemId===d.stemId)||B().actions.find(x=>!x.stemId); d.actionId=a?a.id:"";
+    const n=B().nextSteps.find(x=>x.stemId===d.stemId)||B().nextSteps.find(x=>!x.stemId); d.stepId=n?n.id:"";
+    fillFocusOptions(focusSel, d.stemId, d.actionId); fillGoalOptions(goalSel, d.stemId, d.stepId); setDirty(); });
+  focusSel.addEventListener("change", e=>{ d.actionId=e.target.value; setDirty(); });
+  goalSel.addEventListener("change", e=>{ d.stepId=e.target.value; setDirty(); });
+  it.append(stemSel, focusSel, goalSel);
+  it.append(mkDel(()=>{ B().growthDefaults.splice(i,1); setDirty(); renderDefaultsBody(body); bumpAccCount(body); }));
+  return it;
+}
+function renderDefaultsBody(body){
+  body.innerHTML="";
+  body.insertAdjacentHTML("beforeend",
+    '<p style="font-size:12.5px;color:var(--ink-faint);margin:4px 0 10px;line-height:1.5">'+
+    'Choose what a brand-new row starts with. The first strength (or growth) you add to a student uses <b>#1</b>, the second uses <b>#2</b>, the third uses <b>#3</b> — three at most. Anything added after that starts blank. The <b>level</b> and <b>'+(B().headNoun==="understanding"?"understanding word":"proficiency word")+'</b> are always set per student, so they are not part of a default.</p>');
+
+  const sWrap=document.createElement("div"); sWrap.className="bank-group";
+  sWrap.innerHTML='<div class="gh">When adding a strength &mdash; stem + evidence'+((B().assignments||[]).length>0?' (+ assignment)':'')+'</div>';
+  (B().strengthDefaults||[]).forEach((d,i)=> sWrap.appendChild(strengthDefaultRow(d,i,body)));
+  if((B().strengthDefaults||[]).length<3){
+    const add=document.createElement("div"); add.className="add-line";
+    const btn=document.createElement("button"); btn.className="btn primary sm"; btn.textContent="+ Add strength default";
+    btn.addEventListener("click", ()=>{ if(!B().strengthDefaults) B().strengthDefaults=[];
+      const st=B().stems[0]; const t=B().tasks.find(x=>x.stemId===(st&&st.id));
+      B().strengthDefaults.push({stemId:st?st.id:"", taskId:t?t.id:"", assignmentId:""}); setDirty(); renderDefaultsBody(body); bumpAccCount(body); });
+    add.append(btn); sWrap.appendChild(add);
+  }
+  body.appendChild(sWrap);
+
+  const gWrap=document.createElement("div"); gWrap.className="bank-group";
+  gWrap.innerHTML='<div class="gh">When adding a growth &mdash; stem + focus + goal</div>';
+  (B().growthDefaults||[]).forEach((d,i)=> gWrap.appendChild(growthDefaultRow(d,i,body)));
+  if((B().growthDefaults||[]).length<3){
+    const add=document.createElement("div"); add.className="add-line";
+    const btn=document.createElement("button"); btn.className="btn primary sm"; btn.textContent="+ Add growth default";
+    btn.addEventListener("click", ()=>{ if(!B().growthDefaults) B().growthDefaults=[];
+      const st=B().stems[0];
+      const a=B().actions.find(x=>!x.stemId||x.stemId===(st&&st.id));
+      const n=B().nextSteps.find(x=>!x.stemId||x.stemId===(st&&st.id));
+      B().growthDefaults.push({stemId:st?st.id:"", actionId:a?a.id:"", stepId:n?n.id:""}); setDirty(); renderDefaultsBody(body); bumpAccCount(body); });
+    add.append(btn); gWrap.appendChild(add);
+  }
+  body.appendChild(gWrap);
+}
+
+function removeStem(id){
+  B().stems=B().stems.filter(s=>s.id!==id);
+  B().tasks=B().tasks.filter(t=>t.stemId!==id);
+  B().actions=B().actions.filter(a=>a.stemId!==id);
+  B().nextSteps=B().nextSteps.filter(n=>n.stemId!==id);
+  state.students.forEach(stu=>{ W(stu).strengths=W(stu).strengths.filter(s=>s.stemId!==id); W(stu).growths=W(stu).growths.filter(g=>g.stemId!==id); });
+  setDirty();
+}
+function removeUnit(id){
+  B().units=B().units.filter(u=>u.id!==id);
+  const gone=B().tasks.filter(t=>t.unitId===id).map(t=>t.id);
+  B().tasks=B().tasks.filter(t=>t.unitId!==id);
+  state.students.forEach(stu=> W(stu).strengths.forEach(s=>{ if(gone.includes(s.taskId)) s.taskId=""; }));
+  setDirty();
+}
+function removeAssignment(id){
+  if(B().assignments) B().assignments=B().assignments.filter(a=>a.id!==id);
+  state.students.forEach(stu=> (W(stu).strengths||[]).forEach(s=>{ if(s.assignmentId===id) s.assignmentId=""; }));
+  setDirty();
+}
+function removeOther(id){
+  state.otherComments=state.otherComments.filter(o=>o.id!==id);
+  state.students.forEach(stu=>{ if(W(stu).others) W(stu).others=W(stu).others.filter(o=>o.templateId!==id); });
+  setDirty();
+}
+// Renders a growth list (actions or nextSteps): a "General — all stems" group first, then one group per stem.
+function growthListEditor(body, listKey, idPrefix, placeholder){
+  const groups = [{label:"General — applies to every stem", stemId:""}].concat(B().stems.map(st=>({label:st.label, stemId:st.id})));
+  groups.forEach(grp=>{
+    const items = B()[listKey].filter(x=>(x.stemId||"")===grp.stemId);
+    // Skip an empty General group on banks that don't use shared items, to reduce clutter
+    if(grp.stemId==="" && items.length===0) return;
+    const g=document.createElement("div"); g.className="bank-group"; g.innerHTML='<div class="gh">'+esc(grp.label)+'</div>';
+    items.forEach(x=>{
+      const it=bankItem();
+      const txt=mkTextarea(x.text,"tx",v=>{x.text=v;setDirty();render();});
+      const del=mkDel(()=>{ B()[listKey]=B()[listKey].filter(y=>y.id!==x.id); setDirty(); renderBank(); render(); });
+      it.append(txt,del); g.appendChild(it);
+    });
+    const add=document.createElement("div"); add.className="add-line";
+    const ti=document.createElement("textarea"); ti.placeholder=placeholder; ti.className="grow";
+    const btn=document.createElement("button"); btn.className="btn primary sm"; btn.textContent="Add";
+    btn.addEventListener("click",()=>{ if(ti.value.trim()){ B()[listKey].push({id:uid(idPrefix),stemId:grp.stemId,text:ti.value.trim()}); setDirty(); renderBank(); render(); }});
+    add.append(ti,btn); g.appendChild(add);
+    body.appendChild(g);
+  });
+}
+
+/* ============================================================ IMPORT / EXPORT ============================================================ */
+function exportData(){
+  const data=clone(state); delete data.activeId;
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const d=new Date(); const stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  const subj=(state.meta.activeSubject||"comments").toLowerCase().replace(/\s+/g,"-");
+  a.download="emarking-"+subj+"-"+stamp+".json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  dirty=false; document.getElementById("dirtyFlag").classList.remove("show");
+}
+/* Build, validate, normalize and install `state` from a parsed data object.
+   Shared by Import (.json) and by the baked-in copy loader on startup. */
+/* Ensure a single bank object has every field the app expects (used on full
+   import, on baked-copy load, and when importing a shared single bank). */
+/* The validation gate for every bank that enters from outside the seed (imported
+   file, baked island, future community submission). Coerces field types IN PLACE
+   so unknown fields (e.g. a stem's `prep`) are preserved, drops malformed entries
+   rather than throwing on them, and guarantees the four descriptor levels. */
+function normalizeBank(bk){
+  if(!bk || typeof bk!=="object") bk = {};
+  delete bk.otherComments;                                  // otherComments are global, never per-bank
+  const S = v => v==null ? "" : String(v);                  // safe string coercion
+  const objs = a => Array.isArray(a) ? a.filter(x=>x && typeof x==="object") : [];
+
+  if(typeof bk.usesUnits!=="boolean") bk.usesUnits = !!(bk.units && bk.units.length);
+  if(typeof bk.unitsInComment!=="boolean") bk.unitsInComment = true;
+  if(typeof bk.assignmentConnector!=="string") bk.assignmentConnector = "This was observed in {a}";
+  if(typeof bk.headNoun!=="string") bk.headNoun = "proficiency";
+  if(typeof bk.leveledEvidence!=="boolean") bk.leveledEvidence = false;
+  if(typeof bk.division!=="string") bk.division = S(bk.division);
+
+  // stems: keep the object (preserves `prep` and any other field), coerce text fields, ensure an id
+  bk.stems = objs(bk.stems).map(s=>{ s.id=S(s.id).trim()||uid("st"); s.label=S(s.label); if("prep" in s) s.prep=S(s.prep); return s; });
+
+  // descriptors: object keyed by level "4".."1", each a non-empty array of strings.
+  // Coerced in place so an existing bank's key order (and thus its JSON) is preserved.
+  if(!bk.descriptors || typeof bk.descriptors!=="object") bk.descriptors = {};
+  ["4","3","2","1"].forEach(l=>{
+    const arr = (Array.isArray(bk.descriptors[l]) ? bk.descriptors[l] : []).map(S).map(x=>x.trim()).filter(Boolean);
+    bk.descriptors[l] = arr.length ? arr : clone(DEFAULT_DESCRIPTORS[l]);
+  });
+
+  bk.units = objs(bk.units).map(u=>{ u.id=S(u.id).trim()||uid("unit"); u.label=S(u.label); return u; });
+
+  bk.tasks = objs(bk.tasks).map(t=>{
+    t.id=S(t.id).trim()||uid("task"); t.stemId=S(t.stemId); t.text=S(t.text);
+    if("unitId" in t) t.unitId=S(t.unitId);
+    if(t.byLevel && typeof t.byLevel==="object"){ ["4","3","2","1"].forEach(l=>{ if(t.byLevel[l]!=null) t.byLevel[l]=S(t.byLevel[l]); }); }
+    else if("byLevel" in t) delete t.byLevel;
+    return t;
+  });
+
+  ["assignments","actions","nextSteps"].forEach(k=>{
+    bk[k] = objs(bk[k]).map(x=>{
+      x.id=S(x.id).trim()||uid(k.slice(0,3)); x.text=S(x.text);
+      if("stemId" in x) x.stemId=S(x.stemId);   // "" means "all stems" (same convention the editor uses)
+      return x;
+    });
+  });
+
+  // defaults reference ids; keep objects, coerce ref fields to strings, clamp to 3
+  bk.strengthDefaults = objs(bk.strengthDefaults).map(d=>{ ["stemId","taskId","assignmentId"].forEach(k=>{ if(d[k]!=null) d[k]=S(d[k]); }); return d; }).slice(0,3);
+  bk.growthDefaults   = objs(bk.growthDefaults).map(d=>{ ["stemId","actionId","stepId"].forEach(k=>{ if(d[k]!=null) d[k]=S(d[k]); }); return d; }).slice(0,3);
+
+  return bk;
+}
+function loadStateFromObject(d){
+  const hasBanks = d.banks && d.meta && d.meta.activeSubject;
+  const isV1 = d.stems && d.descriptors && Array.isArray(d.students);
+  if(!hasBanks && !isV1) return false;
+
+  if(hasBanks){
+    state = Object.assign(clone(DEFAULTS), d);
+    if(!state.meta.bullet) state.meta.bullet="• ";
+    // otherComments may live at top level (v3) or inside a bank (older v2)
+    if(!Array.isArray(state.otherComments)){
+      const fromBank = Object.values(state.banks).map(b=>b.otherComments).find(Array.isArray);
+      state.otherComments = fromBank ? clone(fromBank) : clone(DEFAULT_OTHER_COMMENTS);
+    }
+    if(!state.banks[state.meta.activeSubject]) state.meta.activeSubject = Object.keys(state.banks)[0];
+  } else {
+    // migrate a legacy single-bank file
+    const subj = (d.meta && d.meta.subject) || "Science";
+    const bank = {
+      division:(d.meta&&d.meta.division)||"", usesUnits:(d.units&&d.units.length>0),
+      stems:d.stems, descriptors:d.descriptors,
+      units:d.units||[], tasks:d.tasks||[], actions:d.actions||[], nextSteps:d.nextSteps||[]
+    };
+    const students=(d.students||[]).map(s=>({
+      id:s.id||uid("stu"), first:s.first||"", last:s.last||"", pronoun:s.pronoun||"name",
+      work:{ [subj]: {strengths:s.strengths||[], growths:s.growths||[], others:s.others||[], note:s.note||""} }
+    }));
+    state = { version:3, meta:{bullet:(d.meta&&d.meta.bullet)||"• ", activeSubject:subj},
+              otherComments: d.otherComments ? clone(d.otherComments) : clone(DEFAULT_OTHER_COMMENTS),
+              banks:{[subj]:bank}, students };
+  }
+  // normalize every bank (drop stray per-bank otherComments; ensure flags/arrays) + student buckets
+  Object.values(state.banks).forEach(normalizeBank);
+  if(!Array.isArray(state.otherComments)) state.otherComments = clone(DEFAULT_OTHER_COMMENTS);
+  state.students.forEach(s=>{ if(!s.work) s.work={}; });
+  state.activeId = state.students[0]?.id || null;
+  return true;
+}
+function importData(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(d && d.emarkingBank && d.bank){
+        alert("That\u2019s a single shared comment bank, not a full data file.\n\nOpen the Comment bank tab and use \u201cAdd a shared bank\u201d to load it.");
+        return;
+      }
+      if(!loadStateFromObject(d)){ alert("That file doesn\u2019t look like an E-Marking data file."); return; }
+      dirty=false; document.getElementById("dirtyFlag").classList.remove("show");
+      render(); renderBank();
+    }catch(e){ alert("Couldn't read that file: "+e.message); }
+  };
+  r.readAsText(file);
+}
+
+/* ---- Bulk roster entry: paste a class list, one student per line ---- */
+function mapPronToken(s){
+  const t=(s||"").trim().toLowerCase().replace(/\s+/g,"");
+  if(t==="she"||t==="she/her"||t==="her") return "she";
+  if(t==="he"||t==="he/him"||t==="him") return "he";
+  if(t==="they"||t==="they/them"||t==="them") return "they";
+  return "name";
+}
+/* Parse pasted text into {first,last,pronoun} rows.
+   - A line with tabs is treated as spreadsheet columns: First, Last, Pronouns.
+   - A line containing a comma is read as "Last, First" automatically.
+   - Otherwise the first whitespace token is the first name (or the last name, if
+     lastFirst is on for comma-free last-name-first lists), and the rest is the other.
+   Pronouns only come from a third tab-column; other lines default to name-only. */
+function parseRosterLines(text, lastFirst){
+  const rows=[];
+  const clean = s => (s||"").replace(/^[,\s]+|[,\s]+$/g,"").trim();
+  (text||"").split(/\r?\n/).forEach(raw=>{
+    const line=raw.trim();
+    if(!line) return;
+    let first="", last="", pron="name";
+    if(line.indexOf("\t")>=0){
+      const c=line.split("\t").map(x=>x.trim());
+      first=c[0]||""; last=c[1]||""; pron=mapPronToken(c[2]);
+    } else if(line.indexOf(",")>=0){
+      const i=line.indexOf(",");
+      last=line.slice(0,i); first=line.slice(i+1);
+    } else if(lastFirst){
+      const parts=line.split(/\s+/);
+      last=parts.shift()||""; first=parts.join(" ");
+    } else {
+      const parts=line.split(/\s+/);
+      first=parts.shift()||""; last=parts.join(" ");
+    }
+    first=clean(first); last=clean(last);
+    if(first) rows.push({first, last, pron});
+  });
+  return rows;
+}
+function openBulkAdd(){
+  const ov=document.createElement("div"); ov.className="modal-overlay";
+  ov.innerHTML='<div class="modal-card" role="dialog" aria-modal="true" style="max-width:520px">'
+    +'<h3>Add several students</h3>'
+    +'<p class="modal-note" style="margin-bottom:6px">Paste one student per line. Either a plain name, or columns copied straight from a spreadsheet (First, Last, Pronouns — tabs between them). A line with a comma is read as &ldquo;Last, First&rdquo; automatically.</p>'
+    +'<p class="modal-note" style="margin:0 0 10px;color:var(--ink-faint)">Examples: <code>Jordan Lee</code> &nbsp;·&nbsp; <code>Lee, Jordan</code> &nbsp;·&nbsp; <code>Jordan&nbsp;⇥&nbsp;Lee&nbsp;⇥&nbsp;she/her</code></p>'
+    +'<textarea id="bulkText" style="width:100%;min-height:160px;font-family:var(--sans);font-size:13px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--card);color:var(--ink);resize:vertical;line-height:1.5" placeholder="Jordan Lee&#10;Alex Chen&#10;Priya Sharma"></textarea>'
+    +'<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin:8px 0 4px;cursor:pointer"><input type="checkbox" id="bulkLastFirst"> My comma-free lines are last name first (e.g. &ldquo;Lee Jordan&rdquo;)</label>'
+    +'<p class="modal-note" id="bulkPreview" style="color:var(--ink-faint);min-height:18px;margin:4px 0 8px"></p>'
+    +'<div class="modal-actions"><button class="btn primary" id="bulkGo">Add students</button><button class="btn" id="bulkCancel">Cancel</button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  const ta=ov.querySelector("#bulkText");
+  const lf=ov.querySelector("#bulkLastFirst");
+  const prev=ov.querySelector("#bulkPreview");
+  const refresh=()=>{
+    const rows=parseRosterLines(ta.value, lf.checked);
+    if(!rows.length){ prev.textContent=""; return; }
+    const first=rows[0];
+    const nm=(properName(first.first)+" "+properName(first.last)).trim();
+    const pn=first.pron==="name"?"name only":first.pron+"/…";
+    prev.textContent=rows.length+(rows.length===1?" student":" students")+" \u2014 first: "+nm+" ("+pn+")";
+  };
+  ta.addEventListener("input", refresh);
+  lf.addEventListener("change", refresh);
+  ov.addEventListener("click", e=>{ if(e.target===ov) close(); });
+  ov.querySelector("#bulkCancel").addEventListener("click", close);
+  ov.querySelector("#bulkGo").addEventListener("click", ()=>{
+    const rows=parseRosterLines(ta.value, lf.checked);
+    if(!rows.length){ ta.focus(); return; }
+    let firstNewId=null;
+    rows.forEach(r=>{
+      const stu={id:uid("stu"), first:r.first, last:r.last, pronoun:r.pron, work:{}};
+      state.students.push(stu);
+      if(!firstNewId) firstNewId=stu.id;
+    });
+    if(firstNewId && !active()) state.activeId=firstNewId;
+    const rf=document.getElementById("rosterFilter"); if(rf) rf.value="";   // show everyone, including the new arrivals
+    setDirty(); close(); render();
+  });
+  setTimeout(()=>ta.focus(),30);
+}
+
+
+function exportBank(){
+  const payload = { emarkingBank:true, version:3, subject:state.meta.activeSubject, bank:clone(B()) };
+  delete payload.bank.otherComments;                        // global, not part of a subject bank
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  const stamp=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+  const subj=(state.meta.activeSubject||"bank").toLowerCase().replace(/\s+/g,"-");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="emarking-bank-"+subj+"-"+stamp+".json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+function importBank(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!d || !d.emarkingBank || !d.bank){
+        alert(d && d.banks ? "That looks like a full data file (all subjects). Use \u201cImport data\u201d at the top right to load it." : "That doesn\u2019t look like a shared comment bank file.");
+        return;
+      }
+      let name=(d.subject||"Imported bank").trim() || "Imported bank";
+      const bank=normalizeBank(clone(d.bank));
+      if(state.banks[name]){
+        const replace=confirm("You already have a bank called \u201c"+name+"\u201d.\n\nOK = replace it with the imported one.\nCancel = keep both (add the imported one as a separate copy).");
+        if(!replace){
+          const base=name+" (imported)"; let n=base, i=2;
+          while(state.banks[n]){ n=base+" "+i; i++; }
+          name=n;
+        }
+      }
+      state.banks[name]=bank;
+      state.meta.activeSubject=name;
+      setDirty(); render(); renderBank();
+      alert("Imported the \u201c"+name+"\u201d comment bank. It\u2019s now selected in the Bank menu.");
+    }catch(e){ alert("Couldn\u2019t read that file: "+e.message); }
+  };
+  r.readAsText(file);
+}
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll("main").forEach(m=>m.classList.remove("active"));
+    t.classList.add("active");
+    const id=t.dataset.tab;
+    document.getElementById("tab-"+id).classList.add("active");
+    if(id==="bank") renderBank();
+  });
+});
+document.getElementById("addStudent").addEventListener("click", addFromForm);
+function addFromForm(){
+  const f=document.getElementById("newFirst"), l=document.getElementById("newLast"), p=document.getElementById("newPron");
+  if(!f.value.trim()){ f.focus(); return; }
+  const rf=document.getElementById("rosterFilter"); if(rf) rf.value="";   // don't hide the student we just added
+  addStudent(f.value, l.value, p.value);
+  f.value=""; l.value=""; f.focus(); render();
+}
+document.getElementById("newFirst").addEventListener("keydown",e=>{ if(e.key==="Enter") addFromForm(); });
+document.getElementById("newLast").addEventListener("keydown",e=>{ if(e.key==="Enter") addFromForm(); });
+document.getElementById("rosterFilter").addEventListener("input", renderRoster);
+document.getElementById("bulkAddBtn").addEventListener("click", openBulkAdd);
+
+// Help: copy the AI bank-builder prompt
+(function(){
+  const b=document.getElementById("copyPromptBtn"); if(!b) return;
+  b.addEventListener("click", ()=>{
+    const t=document.getElementById("aiPromptText").textContent;
+    const flash=()=>{ const o=b.textContent; b.textContent="Copied \u2713"; b.disabled=true; setTimeout(()=>{ b.textContent=o; b.disabled=false; },1500); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(flash, ()=>{ fallbackCopy(t); flash(); }); }
+    else { fallbackCopy(t); flash(); }
+  });
+})();
+document.getElementById("exportBtn").addEventListener("click", exportData);
+document.getElementById("importBtn").addEventListener("click", ()=>document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change", e=>{ if(e.target.files[0]){ importData(e.target.files[0]); e.target.value=""; } });
+document.getElementById("bankFileInput").addEventListener("change", e=>{ if(e.target.files[0]){ importBank(e.target.files[0]); e.target.value=""; } });
+document.getElementById("subjectSel").addEventListener("change", e=>switchSubject(e.target.value));
+document.getElementById("newSubjectBtn").addEventListener("click", newSubject);
+document.getElementById("resetBtn").addEventListener("click", ()=>{
+  const name = state.meta.activeSubject;
+  if(!ORIGINAL_BANKS[name]){
+    alert("\u201c"+name+"\u201d is a bank you created or imported, so there is no built-in version to restore.\n\nReset bank only works for the banks that ship with E-Marking.");
+    return;
+  }
+  if(confirm("Restore the built-in \u201c"+name+"\u201d bank? This replaces your edits to the \u201c"+name+"\u201d comment bank with the original. Your class lists are kept.")){
+    state.banks[name] = clone(ORIGINAL_BANKS[name]);
+    setDirty(); render(); renderBank();
+  }
+});
+window.addEventListener("beforeunload", e=>{ if(dirty){ e.preventDefault(); e.returnValue=""; } });
+
+/* ---- Download a self-contained copy of the whole app with the data baked in ---- */
+function copyFileName(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return "E-Marking Comment Builder Version 2026.06.17 \u2014 "+d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+p(d.getMinutes())+".html";
+}
+function bakeHTML(){
+  const data=clone(state); delete data.activeId;
+  const json=JSON.stringify(data).replace(/<\//g,"<\\/");      // keep the JSON from closing the <script> early
+  return ORIGINAL_HTML.replace(
+    /(<script id="emarking-saved-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+    (m,p1,p2)=>p1+json+p2                                       // function form avoids $-substitution inside the data
+  );
+}
+function downloadCopy(){
+  const filled=bakeHTML();
+  const url=URL.createObjectURL(new Blob([filled],{type:"text/html"}));
+  const a=document.createElement("a"); a.href=url; a.download=copyFileName();
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),6000);
+  dirty=false; document.getElementById("dirtyFlag").classList.remove("show");
+  showCopyModal(filled);
+}
+function showCopyModal(filledHTML){
+  const ov=document.createElement("div"); ov.className="modal-overlay";
+  ov.innerHTML='<div class="modal-card" role="dialog" aria-modal="true">'
+    +'<h3>Saved a fresh copy \u2713</h3>'
+    +'<p>A new copy of this app \u2014 with <b>every change baked in</b> \u2014 just downloaded to this computer. Open that file next time and your work will already be there; no separate data file needed.</p>'
+    +'<p class="modal-note">Browsers don\u2019t allow this page to close itself or open the saved file for you. You can keep working here and save again whenever you like, or jump straight into the fresh copy now \u2014 then close this tab.</p>'
+    +'<div class="modal-actions"><button class="btn primary" id="mOpen">Open the new copy in a new tab</button><button class="btn" id="mStay">Stay on this tab</button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener("click",e=>{ if(e.target===ov) close(); });
+  ov.querySelector("#mStay").addEventListener("click",close);
+  ov.querySelector("#mOpen").addEventListener("click",()=>{
+    window.open(URL.createObjectURL(new Blob([filledHTML],{type:"text/html"})),"_blank");  // leave the URL alive so the new tab can load
+    close();
+  });
+}
+document.getElementById("saveCopyBtn").addEventListener("click", downloadCopy);
+
+/* If this file was itself saved as a self-contained copy, its data is baked into
+   the #emarking-saved-data island below — load it on open. */
+(function(){
+  const el=document.getElementById("emarking-saved-data");
+  const raw=el && (el.textContent||"").trim();
+  if(raw){ try{ if(loadStateFromObject(JSON.parse(raw))) dirty=false; }catch(e){ /* ignore a corrupt island and fall back to defaults */ } }
+})();
+
+render();
+</script>
+</body>
+</html>
