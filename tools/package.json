@@ -1,0 +1,14 @@
+{
+  "name": "emarking-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Maintainer/CI tooling for E-Marking: validate and bake approved community bank submissions into the seed of index.html. NEVER shipped in index.html and not required to run the app.",
+  "scripts": {
+    "bake": "node bake-bank.mjs ../index.html",
+    "verify": "node verify-bake.mjs ../index.html"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}

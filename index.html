@@ -1178,6 +1178,18 @@ const ORIGINAL_BANKS = {
   "Math 9": MATH_BANK, "CTF 8/9": CTF_BANK, "English 6": ELA6_BANK,
   "Social 6": SST6_BANK, "CTF 6": COMMTECH6_BANK, "Music 7-9": MUSIC79_BANK
 };
+/* Community-submitted banks, approved by the maintainer and BAKED INTO THE SEED by
+   tools/bake-bank.mjs (never fetched at runtime — that would break the offline /
+   file:// / single-file guarantees). Each entry is a normalizeBank()-validated bank,
+   registered below into BOTH the seed (DEFAULTS.banks) and the pristine "Reset bank"
+   copy (ORIGINAL_BANKS). Do not hand-edit between the markers; the bake script inserts
+   each new bank right after @COMMUNITY_BANKS_START@. */
+const COMMUNITY_BANKS = {
+  // @COMMUNITY_BANKS_START@
+  // @COMMUNITY_BANKS_END@
+};
+Object.assign(DEFAULTS.banks, COMMUNITY_BANKS);
+Object.assign(ORIGINAL_BANKS, COMMUNITY_BANKS);
 // Ensure every seeded bank carries the optional fields, so exports stay uniform.
 Object.values(DEFAULTS.banks).forEach(bk=>{
   if(typeof bk.usesUnits!=="boolean") bk.usesUnits = !!(bk.units && bk.units.length);
@@ -1982,6 +1994,7 @@ function renderBank(){
       '<span class="share-label">Share one subject with a colleague</span>'+
       '<button class="btn sm" id="exportBankBtn" title="Download just this subject\u2019s comments as a small file (no class list, no other subjects) to send to a colleague">Share this bank</button>'+
       '<button class="btn sm" id="importBankBtn" title="Load a single-subject bank file a colleague sent you \u2014 it is added as a new subject in your Bank menu. (To re-open your own saved work, use Import data at the top instead.)">Add a shared bank</button>'+
+      '<button class="btn sm" id="submitBankBtn" title="Offer this subject\u2019s bank to the E-Marking project. It opens a GitHub page where the maintainer can review it and, if approved, ship it as a built-in bank for everyone.">Submit this bank to the project</button>'+
     '</div>'+
     '<div class="legend">'+
       '<code><b>{name}</b> → the student</code>'+
@@ -2003,6 +2016,7 @@ function renderBank(){
   w.querySelector("#removeSubjBtn").addEventListener("click", ()=>removeSubject(state.meta.activeSubject));
   w.querySelector("#exportBankBtn").addEventListener("click", exportBank);
   w.querySelector("#importBankBtn").addEventListener("click", ()=>document.getElementById("bankFileInput").click());
+  w.querySelector("#submitBankBtn").addEventListener("click", submitBank);
 
   // Stems
   w.appendChild(acc("Stems", B().stems.length, body=>{
@@ -2570,9 +2584,15 @@ function openBulkAdd(){
 }
 
 
-function exportBank(){
+/* The single-subject artifact shared by "Share this bank" (download) and
+   "Submit this bank to the project" (clipboard + GitHub issue) — identical shape. */
+function buildBankPayload(){
   const payload = { emarkingBank:true, version:3, subject:state.meta.activeSubject, bank:clone(B()) };
   delete payload.bank.otherComments;                        // global, not part of a subject bank
+  return payload;
+}
+function exportBank(){
+  const payload = buildBankPayload();
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const d=new Date(), p=n=>String(n).padStart(2,"0");
   const stamp=d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
@@ -2580,6 +2600,56 @@ function exportBank(){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="emarking-bank-"+subj+"-"+stamp+".json";
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+
+/* ---- Submit a bank to the project (community contribution) ----
+   No network/token/storage: copies the JSON to the clipboard and opens a pre-filled
+   GitHub issue. Works from file:// and Pages alike. The maintainer reviews the issue and,
+   on approval, tools/bake-bank.mjs bakes it into the seed (see COMMUNITY_BANKS above). */
+const REPO_SLUG = "ethanpullan/e-marking";   // hardcoded so the link is identical from file:// and Pages
+function bankIsSubstantive(bank){
+  const stems = (bank.stems||[]).filter(s=>s && (s.label||"").trim()).length;
+  const tasks = (bank.tasks||[]).filter(t=>t && (t.text||"").trim()).length;
+  return stems>=1 && tasks>=1;             // refuse to submit an empty/placeholder bank
+}
+function buildSubmissionIssueURL(subj){
+  const title = "[Bank submission] "+subj;
+  const body =
+    "Thank you for contributing a comment bank to E-Marking!\n\n"+
+    "Your bank’s JSON has been **copied to your clipboard**. Paste it (Ctrl/Cmd-V) between the two ``` lines below, then submit this issue.\n\n"+
+    "```json\n\n```\n\n"+
+    "<!-- Subject: "+subj+" -->\n"+
+    "<!-- emarking-bank-submission -->\n";
+  return "https://github.com/"+REPO_SLUG+"/issues/new"+
+    "?title="+encodeURIComponent(title)+
+    "&labels="+encodeURIComponent("bank-submission")+
+    "&body="+encodeURIComponent(body);
+}
+function submitBank(){
+  const payload = buildBankPayload();
+  if(!bankIsSubstantive(payload.bank)){
+    alert("This bank looks empty. Add at least one stem and one piece of evidence before submitting it to the project.");
+    return;
+  }
+  const json = JSON.stringify(payload,null,2);
+  doCopy(json);                            // clipboard, with textarea fallback for file://
+  showSubmitModal(buildSubmissionIssueURL((state.meta.activeSubject||"bank").trim()), json);
+}
+function showSubmitModal(issueUrl, json){
+  const ov=document.createElement("div"); ov.className="modal-overlay";
+  ov.innerHTML='<div class="modal-card" role="dialog" aria-modal="true">'
+    +'<h3>Submit this bank to the project</h3>'
+    +'<p>This subject’s bank JSON has been <b>copied to your clipboard</b>. A GitHub page will open so the maintainer can review it — if approved, it ships as a built-in bank for everyone.</p>'
+    +'<p class="modal-note">1) Sign in to GitHub if asked. &nbsp; 2) Paste (Ctrl/Cmd-V) <b>between the two ``` lines</b> in the issue body. &nbsp; 3) Submit the issue.</p>'
+    +'<p class="modal-note">Nothing is sent automatically — this only opens a pre-filled issue. If pasting doesn’t work, copy the text below by hand:</p>'
+    +'<textarea readonly style="width:100%;height:110px;font-family:ui-monospace,monospace;font-size:11px">'+esc(json)+'</textarea>'
+    +'<div class="modal-actions"><button class="btn primary" id="sOpen">Open the GitHub submission page</button><button class="btn" id="sClose">Close</button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener("click",e=>{ if(e.target===ov) close(); });
+  ov.querySelector("#sClose").addEventListener("click",close);
+  ov.querySelector("#sOpen").addEventListener("click",()=>{ window.open(issueUrl,"_blank"); });
+  setTimeout(()=>{ const t=ov.querySelector("textarea"); if(t) t.select(); },30);   // make manual copy easy
 }
 function importBank(file){
   const r=new FileReader();

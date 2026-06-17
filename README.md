@@ -29,6 +29,19 @@ Three tabs: **Write comments** (class roster + comment builder), **Comment bank*
 picker switches subjects; nine subject banks ship by default. See the in-app
 **Help** tab for a full walkthrough.
 
+## Contributing a comment bank
+
+In the app, open the **Comment bank** tab and click **Submit this bank to the project**.
+Your bank's JSON is copied to your clipboard and a prefilled GitHub issue opens — sign in
+if asked, paste it between the code fences, and submit. (Nothing is sent automatically; the
+app only opens a link.) If the maintainer approves it, a GitHub Action validates the bank,
+bakes it into the seed, and ships it as a built-in bank for everyone.
+
+Maintainer notes live in [`tools/`](tools/) and [`.github/workflows/`](.github/workflows/):
+approval is the `approved-bank` label on a submission issue, and Pages must be set to deploy
+from **GitHub Actions** (Settings → Pages → Source). None of this tooling ships in
+`index.html` — the app stays a single dependency-free file.
+
 ## Licence
 
 [MIT](LICENSE) © 2026 Ethan Pullan

@@ -1,0 +1,106 @@
+name: Bake approved bank
+
+# When the maintainer approves a submission by adding the `approved-bank` label, validate
+# the submitted bank through the app's own normalizeBank(), bake it into the seed of
+# index.html, verify the edited file loads clean, commit to main, and deploy to Pages.
+#
+# Applying a label requires write/triage access, so this is inherently maintainer-gated.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write   # commit the baked index.html to main
+  issues: write     # comment on / close the submission issue
+  pages: write      # deploy to Pages (in-run)
+  id-token: write   # deploy-pages OIDC
+
+# Serialize against the general deploy workflow so two deploys never clobber each other,
+# and so back-to-back approvals bake one at a time (each run checks out fresh main).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  bake:
+    if: github.event.label.name == 'approved-bank' && contains(toJSON(github.event.issue.labels.*.name), 'bank-submission')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install tooling deps (jsdom)
+        working-directory: tools
+        run: npm ci
+
+      - name: Bake the approved bank into the seed
+        id: bake
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: node tools/bake-bank.mjs index.html
+
+      - name: Verify the edited file before committing
+        run: node tools/verify-bake.mjs index.html
+
+      - name: Commit to main
+        env:
+          BANK_NAME: ${{ steps.bake.outputs.name }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add community bank from #${ISSUE_NUM}: ${BANK_NAME}"
+          git push origin HEAD:main
+
+      - name: Assemble site (single file)
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          [ -f .nojekyll ] && cp .nojekyll _site/ || true
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Comment success and close the issue
+        if: success()
+        uses: actions/github-script@v7
+        env:
+          BANK_NAME: ${{ steps.bake.outputs.name }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            const url = process.env.PAGE_URL || 'https://ethanpullan.github.io/E-Marking/';
+            const name = process.env.BANK_NAME;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+              body: `Baked and deployed as **${name}**. It now ships as a built-in bank — live at ${url}`
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, state: 'closed'
+            });
+
+      - name: Comment on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+              body: `Automated bake failed — see the [Action log](${runUrl}). Common causes: invalid JSON, more than one fenced json block, an empty bank after validation, or the body is not an E-Marking single-bank file. Fix the issue body, then remove and re-add the \`approved-bank\` label to retry.`
+            });

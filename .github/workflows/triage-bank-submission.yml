@@ -1,0 +1,34 @@
+name: Triage bank submission
+
+# Reliably label community bank submissions. The in-app submit button tries to set
+# ?labels=bank-submission, but GitHub drops that param for users without triage rights,
+# so we apply the label here (the GITHUB_TOKEN has the needed permission).
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    # Identify a submission by the hidden marker the app puts in the body, or the title prefix.
+    if: contains(github.event.issue.body, 'emarking-bank-submission') || startsWith(github.event.issue.title, '[Bank submission]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            // Ensure the label exists (create once), then add it (idempotent).
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: 'bank-submission' });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({ owner, repo, name: 'bank-submission',
+                  color: '0e8a16', description: 'A community comment-bank submission' });
+              } else { throw e; }
+            }
+            await github.rest.issues.addLabels({ owner, repo, issue_number, labels: ['bank-submission'] });

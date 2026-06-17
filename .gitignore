@@ -1,0 +1,3 @@
+# Maintainer/CI tooling dependencies — installed fresh via `npm ci`, never committed.
+node_modules/
+tools/node_modules/
