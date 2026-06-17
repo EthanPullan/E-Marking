@@ -28,7 +28,3 @@ Three tabs: **Write comments** (class roster + comment builder), **Comment bank*
 (edit the wording and options for the current subject), and **Help**. A **Bank**
 picker switches subjects; nine subject banks ship by default. See the in-app
 **Help** tab for a full walkthrough.
-
-## Licence
-
-[MIT](LICENSE) © 2026 Ethan Pullan
