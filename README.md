@@ -41,7 +41,3 @@ Maintainer notes live in [`tools/`](tools/) and [`.github/workflows/`](.github/w
 approval is the `approved-bank` label on a submission issue, and Pages must be set to deploy
 from **GitHub Actions** (Settings → Pages → Source). None of this tooling ships in
 `index.html` — the app stays a single dependency-free file.
-
-## Licence
-
-[MIT](LICENSE) © 2026 Ethan Pullan
